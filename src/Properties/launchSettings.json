@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Default": {
+      "commandName": "Executable",
+      "executablePath": "pwsh.exe",
+      "commandLineArgs": "-NoExit -Command \"Import-Module ./Microsoft.PowerShell.Archive.dll\""
+    }
+  }
+}

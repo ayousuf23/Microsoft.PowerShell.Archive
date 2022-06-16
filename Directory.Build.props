@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)\..\build</OutDir>
+    <BaseIntermediateOutputPath>$(SolutionDir)\..\obj</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
