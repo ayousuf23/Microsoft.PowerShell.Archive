@@ -187,6 +187,10 @@ Notes:
 
 - Validate that you can compress an archive to a custom PSDrive (842)
 
+### Abrupt Command Stop tests
+
+- **[NEEDED]** Validate that clean up is performed when the command is stopped abruptly
+
 
 ## Expand-Archive Tests
 
@@ -308,6 +312,10 @@ Notes:
 - **[NEEDED]** Validate error when an archive in an unsupported format is supplied to Expand-Archive
 
 - **[NEEDED]** Validate error when a non-archive file is supplied to Expand-Archive
+
+### Abrupt Command Stop tests
+
+- **[NEEDED]** Validate that clean up is performed when the command is stopped abruptly
 
 
 
