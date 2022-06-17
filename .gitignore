@@ -1,4 +1,7 @@
-build/
+build/*.dll
+build/Debug
+build/*.pdb
+build*.json
 obj/
 src/obj/
 .vs/

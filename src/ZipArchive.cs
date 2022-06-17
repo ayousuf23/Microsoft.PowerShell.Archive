@@ -10,8 +10,6 @@ namespace Microsoft.PowerShell.Archive
     internal class ZipArchive : IDisposable
     {
 
-        private string? _sourceDirectoryFullPath;
-
         private string _destinationPath;
 
         private System.IO.Compression.ZipArchive _zipArchive;
@@ -20,32 +18,28 @@ namespace Microsoft.PowerShell.Archive
 
         private bool disposedValue;
 
-        public ZipArchive(string? sourceDirectoryFullPath, string destinationPath, System.IO.FileStream archiveFileStream, System.IO.Compression.ZipArchive zipArchive)
+        public ZipArchive(string destinationPath, System.IO.FileStream archiveFileStream, System.IO.Compression.ZipArchive zipArchive)
         {
-            _sourceDirectoryFullPath = sourceDirectoryFullPath;
             _destinationPath = destinationPath;
             _zipArchive = zipArchive;
             _archiveFileStream = archiveFileStream;
         }
 
-        public static ZipArchive Create(string? sourceDirectoryFullPath, string destinationPath)
+        public static ZipArchive Create(string destinationPath)
         {
             //Create stream
             System.IO.FileStream archiveStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
             var zipArchive = new System.IO.Compression.ZipArchive(archiveStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: false);
-            //zipArchive.Dispose();
-
-            //zipArchive = new System.IO.Compression.ZipArchive(archiveStream, System.IO.Compression.ZipArchiveMode.C, leaveOpen: false);
 
 
-            ZipArchive archive = new ZipArchive(sourceDirectoryFullPath, destinationPath, archiveStream, zipArchive);
+            ZipArchive archive = new ZipArchive(destinationPath, archiveStream, zipArchive);
             return archive;
         }
 
-        public void AddFile(string fileFullPath)
+        public void AddFile(string fileFullPath, string? sourceDirectoryFullPath)
         {
-            var entryName = (_sourceDirectoryFullPath is not null) ? fileFullPath.Replace(_sourceDirectoryFullPath, "").Trim() : System.IO.Path.GetFileName(fileFullPath);
-            entryName = entryName.Replace(System.IO.Path.PathSeparator, System.IO.Path.AltDirectorySeparatorChar);
+            var entryName = (sourceDirectoryFullPath is not null) ? fileFullPath.Replace(sourceDirectoryFullPath, "").Trim() : System.IO.Path.GetFileName(fileFullPath);
+            entryName = entryName.Replace(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
 
             _zipArchive.CreateEntryFromFile(fileFullPath, entryName, CompressionLevel.Optimal);
         }
@@ -54,14 +48,14 @@ namespace Microsoft.PowerShell.Archive
         {
             if (System.IO.File.Exists(itemFullPath))
             {
-                AddFile(itemFullPath);
+                AddFile(itemFullPath, null);
             } else
             {
-                AddDirectory(itemFullPath);
+                AddDirectory(itemFullPath, null);
             }
         }
 
-        public void AddDirectory(string directoryFullPath)
+        public void AddDirectory(string directoryFullPath, string? sourceDirectoryFullPath)
         {
             System.IO.DirectoryInfo info = new DirectoryInfo(directoryFullPath);
 
@@ -70,45 +64,30 @@ namespace Microsoft.PowerShell.Archive
             var subdirectories = info.GetDirectories();
             if (subfiles.Length + subdirectories.Length == 0)
             {
-                var entryName = (_sourceDirectoryFullPath is not null) ? directoryFullPath.Replace(_sourceDirectoryFullPath, "").Trim() : System.IO.Path.GetFileName(directoryFullPath);
+                var entryName = (sourceDirectoryFullPath is not null) ? directoryFullPath.Replace(sourceDirectoryFullPath, "").Trim() : System.IO.Path.GetFileName(directoryFullPath);
                 entryName = entryName.Replace(System.IO.Path.PathSeparator, System.IO.Path.AltDirectorySeparatorChar);
                 entryName += System.IO.Path.AltDirectorySeparatorChar;
                 _zipArchive.CreateEntry(entryName);
                 return;
             }
 
-        }
+            //Add subfiles and subdirectories
 
-        public void AddFileLegacy(string fileFullPath)
-        {
-            //Assume fileFullPath = _sourceDirectoryFullPath + _relativePath
-            var relativePath = (_sourceDirectoryFullPath is not null) ? fileFullPath.Replace(_sourceDirectoryFullPath, "").Trim() : System.IO.Path.GetFileName(fileFullPath);
-
-            var sourceFileStream = System.IO.File.Open(fileFullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-            var sourceBinaryStream = new System.IO.BinaryReader(sourceFileStream);
-
-            var entryPath = relativePath.Replace(System.IO.Path.PathSeparator, System.IO.Path.AltDirectorySeparatorChar);
-
-            //Create entry in the archive
-            var entry = _zipArchive.CreateEntry(entryPath, System.IO.Compression.CompressionLevel.Optimal);
-
-            var archiveEntryStream = entry.Open();
-            var archiveEntryBinaryWriter = new BinaryWriter(archiveEntryStream);
-
-            //4KB buffer
-            var buffer = new byte[1024 * 4];
-            int bytesRead = sourceBinaryStream.Read(buffer, 0, buffer.Length);
-            while (bytesRead > 0)
+            if (sourceDirectoryFullPath is null)
             {
-                archiveEntryBinaryWriter.Write(buffer, 0, bytesRead);
-                archiveEntryBinaryWriter.Flush();
-                bytesRead = sourceBinaryStream.Read(buffer, 0, buffer.Length);
+                sourceDirectoryFullPath = info.Parent.FullName;
+                if (!sourceDirectoryFullPath.EndsWith(System.IO.Path.DirectorySeparatorChar)) sourceDirectoryFullPath += System.IO.Path.DirectorySeparatorChar.ToString();
             }
-            archiveEntryBinaryWriter.Dispose();
-            archiveEntryStream.Dispose();
-            sourceBinaryStream.Dispose();
-            sourceFileStream.Dispose();
+                foreach (var subfile in subfiles)
+            {
+                AddFile(subfile.FullName, sourceDirectoryFullPath);
+            }
+
+            foreach (var directory in subdirectories)
+            {
+                AddDirectory(directory.FullName, sourceDirectoryFullPath);
+            }
+
         }
 
         protected virtual void Dispose(bool disposing)

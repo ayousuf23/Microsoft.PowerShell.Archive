@@ -72,15 +72,15 @@ namespace Microsoft.PowerShell.Archive
         protected override void EndProcessing()
         {
             //Compress each file
-            CreateZipArchive(null);
+            CreateZipArchive();
 
 
             base.EndProcessing();
         }
 
-        private void CreateZipArchive(string? sourceDirFullPath)
+        private void CreateZipArchive()
         {
-            ZipArchive zipArchive = ZipArchive.Create(sourceDirFullPath, DestinationPath);
+            ZipArchive zipArchive = ZipArchive.Create(DestinationPath);
 
             foreach (var currentItem in _inputPaths)
             {
