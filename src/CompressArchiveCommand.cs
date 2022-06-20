@@ -1,4 +1,5 @@
-﻿using System.Management.Automation;
+﻿using System.IO;
+using System.Management.Automation;
 
 namespace Microsoft.PowerShell.Archive
 {
@@ -40,42 +41,191 @@ namespace Microsoft.PowerShell.Archive
         public SwitchParameter PassThru { get; set; } = false;
 
 
-        private ISet<string> _inputPaths;
+        //Store source paths as they were inputted
+        private List<string> _inputPaths;
 
         public CompressArchiveCommand()
         {
-            _inputPaths = new HashSet<string>();
+            _inputPaths = new List<string>();
         }
 
 
         protected override void BeginProcessing()
         {
-
-            DestinationPath = GetUnresolvedProviderPathFromPSPath(DestinationPath); //Get full destination path, even if it does not exist and do not expand wildcard characters
-            
+            //Step 1: get destination path
+            DestinationPath = GetDestinationPath();
             
 
             base.BeginProcessing();
         }
 
-        //Use this to append current path to inputPaths
+       
         protected override void ProcessRecord()
         {
-            //Resolve the path
-            bool useLiteralPath = ParameterSetName.StartsWith("LiteralPath");
-            if (useLiteralPath) AddLiteralPathToInputPaths();
-            else AddPathToInputPaths();
+            //Step 2: Add path/literal path to input paths
+            if (ParameterSetName.StartsWith("Path")) _inputPaths.AddRange(Path);
+            else _inputPaths.AddRange(LiteralPath);
+            
 
             base.ProcessRecord();
         }
 
         protected override void EndProcessing()
         {
+            //Step 3: Find duplicates from input paths
+            _inputPaths.ForEach(x => x = x.Trim());
+            var duplicates = _inputPaths.GroupBy(x => x)
+                                        .Where(group => group.Count() > 1)
+                                        .Select(x => x.Key);
+
+            //Step 4: Report an error if there are duplicates
+            //If there a positive number of duplicates, throw an error
+            if (duplicates.Count() > 0)
+            {
+                var parameterName = ParameterSetName.StartsWith("Path") ? "Path" : "LiteralPath";
+                var commaSeperatedDuplicates = String.Join(",", duplicates);
+                var errorMessage = String.Format(ErrorMessages.DuplicatePathFoundError, parameterName, commaSeperatedDuplicates);
+                var exception = new System.InvalidOperationException(errorMessage);
+                ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletDuplicatePaths", System.Management.Automation.ErrorCategory.InvalidArgument, duplicates);
+                ThrowTerminatingError(errorRecord);
+            }
+
+            //Step 5: Resolve Path
+            List<ProcessingPath> processingPaths;
+            if (ParameterSetName.StartsWith("Path")) processingPaths = ResolveNonLiteralPaths();
+            else processingPaths = ResolveLiteralPaths();
+
+            //Step 6: Create the archive
+
+            //Step 7: Add each file to it
+
             //Compress each file
-            CreateZipArchive();
+            //CreateZipArchive();
 
 
             base.EndProcessing();
+        }
+
+        private List<ProcessingPath> ResolveLiteralPaths()
+        {
+            List<ProcessingPath> processingPaths = new List<ProcessingPath>();
+            List<string> nonexistantPaths = new List<string>();
+            foreach (var path in _inputPaths)
+            {
+                //Get the unresolved path
+                string unresolvedPath = GetUnresolvedProviderPathFromPSPath(path);
+
+                //Get # of ancestor directories to keep
+                int numberOfAncestorDirectoriesToKeep = path.Count(x => x == System.IO.Path.DirectorySeparatorChar || x == System.IO.Path.AltDirectorySeparatorChar);
+                if (path.EndsWith(System.IO.Path.DirectorySeparatorChar) && path.Length > 1)
+                {
+                    numberOfAncestorDirectoriesToKeep--;
+                }
+
+                //Check if the path exists
+                if (System.IO.Directory.Exists(unresolvedPath))
+                {
+                    // Make sure the path has a '/' at the end
+                    if (!unresolvedPath.EndsWith(System.IO.Path.PathSeparator)) unresolvedPath += System.IO.Path.DirectorySeparatorChar;
+
+                    //Add '*' at the end and call ResolveNonLiteralPaths if the directory is not empty
+                    if (System.IO.Directory.EnumerateFileSystemEntries(unresolvedPath).Count() > 0)
+                    {
+                        //Add '*' to end
+                        unresolvedPath += "*";
+
+                        //Call ResolveNonLiteralPaths
+                        List<ProcessingPath> directoryProcessingPaths = ResolveNonLiteralPaths();
+                        directoryProcessingPaths.ForEach(x => x = new ProcessingPath(x.FullPath, numberOfAncestorDirectoriesToKeep + x.NumberOfAncestorDirectoriesToKeep));
+                        processingPaths.AddRange(directoryProcessingPaths);
+                        continue;
+                    }
+                } 
+                else if (!System.IO.File.Exists(unresolvedPath))
+                {
+                    //Add path to nonexistantPaths
+                    nonexistantPaths.Add(path);
+                    continue;
+                }
+
+                
+                WriteObject($"For path {path}: {numberOfAncestorDirectoriesToKeep}");
+
+                //Finally, create a struct with path info
+                ProcessingPath processingPath = new ProcessingPath(unresolvedPath, numberOfAncestorDirectoriesToKeep);
+                processingPaths.Add(processingPath);
+            }
+
+            //Throw an error if we have nonexistant paths
+            if (nonexistantPaths.Count > 0)
+            {
+                var commaSeperatedPaths = String.Join(',', nonexistantPaths);
+                var errorMessage = String.Format(ErrorMessages.PathNotFoundError, commaSeperatedPaths);
+                var exception = new System.InvalidOperationException(errorMessage);
+                ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletInvalidPath", System.Management.Automation.ErrorCategory.InvalidArgument, nonexistantPaths);
+                ThrowTerminatingError(errorRecord);
+
+            }
+
+            return processingPaths;
+        }
+
+        //Need to add a parameter for a collection
+        private List<ProcessingPath> ResolveNonLiteralPaths()
+        {
+            List<ProcessingPath> processingPaths = new List<ProcessingPath>();
+            List<string> nonexistantPaths = new List<string>();
+            foreach (var path in _inputPaths)
+            {
+                //Get the unresolved path
+                ProviderInfo info;
+                var resolvedPaths = GetResolvedProviderPathFromPSPath(path, out info);
+
+                //Check if the path belongs to the filesystem, otherwise add it to nonexistant paths
+                if (info.Name != "FileSystem")
+                {
+                    nonexistantPaths.Add(path);
+                    continue;
+                }
+
+                //Get # of ancestor directories to keep
+                int numberOfAncestorDirectoriesToKeep = path.Count(x => x == System.IO.Path.DirectorySeparatorChar || x == System.IO.Path.AltDirectorySeparatorChar);
+                if (path.EndsWith(System.IO.Path.DirectorySeparatorChar) && path.Length > 1)
+                {
+                    numberOfAncestorDirectoriesToKeep--;
+                }
+
+                foreach (var resolvedPath in resolvedPaths)
+                {
+                    string finalResolvedPath = resolvedPath;
+
+                    //Check if the path exists
+                    if (System.IO.Directory.Exists(finalResolvedPath))
+                    {
+                        // Make sure the path has a '/' at the end
+                        if (!finalResolvedPath.EndsWith(System.IO.Path.PathSeparator)) finalResolvedPath += System.IO.Path.DirectorySeparatorChar;
+                    }
+                    
+                    WriteObject($"For path {resolvedPath}: {numberOfAncestorDirectoriesToKeep}");
+
+                    //Finally, create a struct with path info
+                    ProcessingPath processingPath = new ProcessingPath(finalResolvedPath, numberOfAncestorDirectoriesToKeep);
+                    processingPaths.Add(processingPath);
+                }
+            }
+
+            //Throw an error if we have nonexistant paths
+            if (nonexistantPaths.Count > 0)
+            {
+                var commaSeperatedPaths = String.Join(',', nonexistantPaths);
+                var errorMessage = String.Format(ErrorMessages.PathNotFoundError, commaSeperatedPaths);
+                var exception = new System.InvalidOperationException(errorMessage);
+                ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletInvalidPath", System.Management.Automation.ErrorCategory.InvalidArgument, nonexistantPaths);
+                ThrowTerminatingError(errorRecord);
+
+            }
+
+            return processingPaths;
         }
 
         private void CreateZipArchive()
@@ -90,58 +240,38 @@ namespace Microsoft.PowerShell.Archive
             zipArchive.Dispose();
         }
 
-        private void AddPathToInputPaths()
+        //Get the full destination path given DestinationPath parameter
+        private string GetDestinationPath()
         {
-            foreach (var path in Path)
-            {
-                //We want to resolve using ResolvedPath
-                ProviderInfo providerInfo;
-                var resolvedPaths = GetResolvedProviderPathFromPSPath(path, out providerInfo);
-                if (providerInfo.Name != "FileSystem")
-                {
-                    var errorMessage = $"Invalid Path {path}";
-                    var exception = new System.InvalidOperationException(errorMessage);
-                    ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletPathNotFound", System.Management.Automation.ErrorCategory.InvalidArgument, path);
-                    ThrowTerminatingError(errorRecord);
-                }
+            //Get the unresolved path
+            string path = GetUnresolvedProviderPathFromPSPath(DestinationPath);
 
-                foreach (var resolvedPath in resolvedPaths)
-                {
-                    //Check for duplicates
-                    if (!_inputPaths.Add(resolvedPath))
-                    {
-                        var errorMessage = $"Duplicate Path {resolvedPath}";
-                        var exception = new System.InvalidOperationException(errorMessage);
-                        ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletPathDuplicate", System.Management.Automation.ErrorCategory.InvalidArgument, resolvedPath);
-                        ThrowTerminatingError(errorRecord);
-                    }
-                }
+            //Check if it is a folder
+            if (System.IO.Directory.Exists(path))
+            {
+                //if so, append folder's file name to it
+                var directoryInfo = new DirectoryInfo(path);
+                path += directoryInfo.Name + ".zip";
             }
-        }
 
-        private void AddLiteralPathToInputPaths()
-        {
-            foreach (var path in LiteralPath)
+            //Check if the path points to an existing file
+            if (System.IO.File.Exists(path))
             {
-                //Resolve path using unresolved path
-                var unresolvedpath = GetUnresolvedProviderPathFromPSPath(path);
-                if (!System.IO.File.Exists(unresolvedpath) && !System.IO.Directory.Exists(unresolvedpath))
+                if (Force)
                 {
-                    var errorMessage = $"Invalid or non-existant Path {path}";
-                    var exception = new System.InvalidOperationException(errorMessage);
-                    ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletPathNotFound", System.Management.Automation.ErrorCategory.InvalidArgument, path);
-                    ThrowTerminatingError(errorRecord);
-                }
-
-                //Check for duplicates
-                if (!_inputPaths.Add(unresolvedpath))
+                    //Remove the file
+                    System.IO.File.Delete(path);
+                } else
                 {
-                    var errorMessage = $"Duplicate Path {path}";
+                    //Throw an error 
+                    var errorMessage = String.Format(ErrorMessages.ZipFileExistError, path);
                     var exception = new System.InvalidOperationException(errorMessage);
-                    ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletPathDuplicate", System.Management.Automation.ErrorCategory.InvalidArgument, path);
+                    ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletArchiveExists", System.Management.Automation.ErrorCategory.InvalidArgument, path);
                     ThrowTerminatingError(errorRecord);
                 }
             }
+
+            return path;
         }
     }
 }
