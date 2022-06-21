@@ -8,14 +8,15 @@ namespace Microsoft.PowerShell.Archive
 {
     struct ProcessingPath
     {
-        public string FullPath { get; init; }
+        //The entry prefix
+        public string BasePath { get; init; }
 
-        public int NumberOfAncestorDirectoriesToKeep { get; init; }
+        public List<string> ChildPaths { get; init; }
 
-        public ProcessingPath(string fullPath, int numberOfAncestorDirectoriesToKeep)
+        public ProcessingPath(string basePath, List<string> childPaths)
         {
-            FullPath = fullPath;
-            NumberOfAncestorDirectoriesToKeep = numberOfAncestorDirectoriesToKeep;
+            BasePath = basePath;
+            ChildPaths = childPaths;
         }
     }
 }

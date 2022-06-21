@@ -4,13 +4,13 @@ using System.Management.Automation;
 namespace Microsoft.PowerShell.Archive
 {
     [Cmdlet("Compress", "Archive", SupportsShouldProcess=true)]
-    public class CompressArchiveCommand : PSCmdlet
+    public class CompressArchiveCommand : Microsoft.PowerShell.Commands.CoreCommandBase
     {
 
 
-        [Parameter(Position = 0, Mandatory = true, ParameterSetName = "Path", ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
-        [Parameter(Position = 0, Mandatory = true, ParameterSetName = "PathWithForce", ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
-        [Parameter(Position = 0, Mandatory = true, ParameterSetName = "PathWithUpdate", ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "Path", ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PathWithForce", ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "PathWithUpdate", ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
         public string[]? Path { get; set; }
 
@@ -21,7 +21,7 @@ namespace Microsoft.PowerShell.Archive
         [Alias("PSPath")]
         public string[]? LiteralPath { get; set; }
 
-        [Parameter(Position = 1, Mandatory = true, ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
+        [Parameter(Mandatory = true, Position = 1, ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
         [ValidateNotNullOrEmpty]
         public string? DestinationPath { get; set; }
 
@@ -36,7 +36,7 @@ namespace Microsoft.PowerShell.Archive
 
         [Parameter(Mandatory = true, ParameterSetName = "PathWithForce", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
         [Parameter(Mandatory = true, ParameterSetName = "LiteralPathWithForce", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
-        public SwitchParameter Force { get; set; }
+        public override SwitchParameter Force { get { return base.Force; } set { base.Force = value; } }
 
         public SwitchParameter PassThru { get; set; } = false;
 
@@ -54,6 +54,8 @@ namespace Microsoft.PowerShell.Archive
         {
             //Step 1: get destination path
             DestinationPath = GetDestinationPath();
+
+            
             
 
             base.BeginProcessing();
@@ -65,6 +67,8 @@ namespace Microsoft.PowerShell.Archive
             //Step 2: Add path/literal path to input paths
             if (ParameterSetName.StartsWith("Path")) _inputPaths.AddRange(Path);
             else _inputPaths.AddRange(LiteralPath);
+
+            
             
 
             base.ProcessRecord();
@@ -72,13 +76,17 @@ namespace Microsoft.PowerShell.Archive
 
         protected override void EndProcessing()
         {
-            //Step 3: Find duplicates from input paths
-            _inputPaths.ForEach(x => x = x.Trim());
-            var duplicates = _inputPaths.GroupBy(x => x)
+            //Resolve the source paths
+            PathHelper pathHelper = new PathHelper();
+            pathHelper.Cmdlet = this;
+            List<EntryRecord> entryRecords = pathHelper.GetNonLiteralPath(Path);
+
+            //Find duplicates from input paths
+            var duplicates = entryRecords.GroupBy(x => x.Name)
                                         .Where(group => group.Count() > 1)
                                         .Select(x => x.Key);
 
-            //Step 4: Report an error if there are duplicates
+            //Report an error if there are duplicates
             //If there a positive number of duplicates, throw an error
             if (duplicates.Count() > 0)
             {
@@ -90,217 +98,34 @@ namespace Microsoft.PowerShell.Archive
                 ThrowTerminatingError(errorRecord);
             }
 
-            //Step 5: Resolve Path
-            List<ProcessingPath> processingPaths;
-            if (ParameterSetName.StartsWith("Path")) processingPaths = ResolveNonLiteralPaths(_inputPaths, null);
-            else processingPaths = ResolveLiteralPaths();
+            if (ShouldProcess(DestinationPath, "Compress-Archive"))
+            {
+                //Create an archive
+                ZipArchive zipArchive;
+                if (Update)
+                {
+                    zipArchive = ZipArchive.OpenForUpdating(DestinationPath);
+                }
+                else
+                {
+                    zipArchive = ZipArchive.Create(DestinationPath);
+                }
+                zipArchive.SetCompressionLevel(CompressionLevel);
 
-            //Step 6: Create the archive
+                //Process the entry records
+                foreach (var entry in entryRecords)
+                {
+                    zipArchive.AddItem(entry);
+                }
 
-            //Step 7: Add each file to it
-
-            //Compress each file
-            //CreateZipArchive();
+                //Dispose the archive
+                zipArchive.Dispose();
+            }
 
             
 
 
             base.EndProcessing();
-        }
-
-        private List<ProcessingPath> ResolveLiteralPaths()
-        {
-            List<ProcessingPath> processingPaths = new List<ProcessingPath>();
-            List<string> nonexistantPaths = new List<string>();
-            foreach (var path in _inputPaths)
-            {
-                //Get the unresolved path
-                string unresolvedPath = GetUnresolvedProviderPathFromPSPath(path);
-
-                //Get # of ancestor directories to keep
-                int numberOfAncestorDirectoriesToKeep = path.Count(x => x == System.IO.Path.DirectorySeparatorChar || x == System.IO.Path.AltDirectorySeparatorChar);
-                if (path.EndsWith(System.IO.Path.DirectorySeparatorChar) && path.Length > 1)
-                {
-                    numberOfAncestorDirectoriesToKeep--;
-                }
-
-                //Check if the path exists
-                if (System.IO.Directory.Exists(unresolvedPath))
-                {
-                    // Make sure the path has a '/' at the end
-                    if (!unresolvedPath.EndsWith(System.IO.Path.PathSeparator)) unresolvedPath += System.IO.Path.DirectorySeparatorChar;
-
-                    //Add '*' at the end and call ResolveNonLiteralPaths if the directory is not empty
-                    /*if (System.IO.Directory.EnumerateFileSystemEntries(unresolvedPath).Count() > 0)
-                    {
-                        //Add '*' to end
-                        unresolvedPath += "*";
-
-                        //Call ResolveNonLiteralPaths
-                        List<ProcessingPath> directoryProcessingPaths = ResolveNonLiteralPaths();
-                        directoryProcessingPaths.ForEach(x => x = new ProcessingPath(x.FullPath, numberOfAncestorDirectoriesToKeep + x.NumberOfAncestorDirectoriesToKeep));
-                        processingPaths.AddRange(directoryProcessingPaths);
-                        continue;
-                    }*/
-                } 
-                else if (!System.IO.File.Exists(unresolvedPath))
-                {
-                    //Add path to nonexistantPaths
-                    nonexistantPaths.Add(path);
-                    continue;
-                }
-
-                
-                WriteObject($"For path {path}: {numberOfAncestorDirectoriesToKeep}");
-
-                //Finally, create a struct with path info
-                ProcessingPath processingPath = new ProcessingPath(unresolvedPath, numberOfAncestorDirectoriesToKeep);
-                processingPaths.Add(processingPath);
-            }
-
-            //Throw an error if we have nonexistant paths
-            if (nonexistantPaths.Count > 0)
-            {
-                var commaSeperatedPaths = String.Join(',', nonexistantPaths);
-                var errorMessage = String.Format(ErrorMessages.PathNotFoundError, commaSeperatedPaths);
-                var exception = new System.InvalidOperationException(errorMessage);
-                ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletInvalidPath", System.Management.Automation.ErrorCategory.InvalidArgument, nonexistantPaths);
-                ThrowTerminatingError(errorRecord);
-
-            }
-
-            return processingPaths;
-        }
-
-        //Need to add a parameter for a collection
-        private List<ProcessingPath> ResolveNonLiteralPaths(IEnumerable<string> sourcePaths, string? entryPrefix)
-        {
-            List<ProcessingPath> processingPaths = new List<ProcessingPath>();
-            List<string> nonexistantPaths = new List<string>();
-            foreach (var path in sourcePaths)
-            {
-                //Get the unresolved path
-                ProviderInfo info;
-                var resolvedPaths = GetResolvedProviderPathFromPSPath(path, out info);
-
-                //Check if the path belongs to the filesystem, otherwise add it to nonexistant paths
-                if (info.Name != "FileSystem")
-                {
-                    nonexistantPaths.Add(path);
-                    continue;
-                }
-
-               
-
-                foreach (var resolvedPath in resolvedPaths)
-                {
-                    string finalResolvedPath = resolvedPath;
-
-                    if (entryPrefix == null)
-                    {
-                        //Get number of ancestor directories in path
-                        int numberOfAncestorDirectoriesToKeep = GetNumberOfAncestorDirectories(path);
-                        entryPrefix = GetEntryPrefixForPath(new string(finalResolvedPath), numberOfAncestorDirectoriesToKeep);
-                        WriteObject($"For path {resolvedPath}: {numberOfAncestorDirectoriesToKeep}");
-                    }
-
-                    //Check if the path exists
-                    if (System.IO.Directory.Exists(finalResolvedPath))
-                    {
-                        // Make sure the path has a '/' at the end
-                        if (!finalResolvedPath.EndsWith(System.IO.Path.PathSeparator)) finalResolvedPath += System.IO.Path.DirectorySeparatorChar;
-
-                        //If the directory has entries, recurse to get those entries
-                        if (GetDirectoryChildren(finalResolvedPath, entryPrefix, processingPaths)) continue;
-
-                    }
-
-                    WriteObject($"For path {resolvedPath}: {entryPrefix}");
-
-
-
-
-                    //Finally, create a struct with path info
-                    //ProcessingPath processingPath = new ProcessingPath(finalResolvedPath, numberOfAncestorDirectoriesToKeep);
-                    //processingPaths.Add(processingPath);
-                }
-            }
-
-            //Throw an error if we have nonexistant paths
-            if (nonexistantPaths.Count > 0)
-            {
-                var commaSeperatedPaths = String.Join(',', nonexistantPaths);
-                var errorMessage = String.Format(ErrorMessages.PathNotFoundError, commaSeperatedPaths);
-                var exception = new System.InvalidOperationException(errorMessage);
-                ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletInvalidPath", System.Management.Automation.ErrorCategory.InvalidArgument, nonexistantPaths);
-                ThrowTerminatingError(errorRecord);
-
-            }
-
-            return processingPaths;
-        }
-
-        private bool GetDirectoryChildren(string directoryPath, string entryPrefix, List<ProcessingPath> processingPaths)
-        {
-
-            //Add '*' at the end and call ResolveNonLiteralPaths if the directory is not empty
-            if (System.IO.Directory.EnumerateFileSystemEntries(directoryPath).Count() > 0)
-            {
-                //Add '*' to end
-                directoryPath += "*";
-
-                //Call ResolveNonLiteralPaths
-                List<ProcessingPath> directoryProcessingPaths = ResolveNonLiteralPaths(new string[] { directoryPath }, entryPrefix);
-                processingPaths.AddRange(directoryProcessingPaths);
-                return true;
-            }
-            return false;
-        }
-
-        private string GetEntryPrefixForPath(string path, int numberOfAncestorDirectories)
-        {
-            DirectoryInfo ancestorDirectory;
-            if (path.EndsWith(System.IO.Path.DirectorySeparatorChar))
-            {
-                ancestorDirectory = new DirectoryInfo(path);
-                ancestorDirectory = ancestorDirectory.Parent;
-            }
-            else
-            {
-                System.IO.FileInfo fileInfo = new System.IO.FileInfo(path);
-                ancestorDirectory = fileInfo.Directory;
-            }
-
-
-
-            while (numberOfAncestorDirectories > 0)
-            {
-                ancestorDirectory = ancestorDirectory.Parent;
-                numberOfAncestorDirectories--;
-            }
-            return ancestorDirectory.FullName;
-        }
-
-        private int GetNumberOfAncestorDirectories(string path)
-        {
-            int numberOfAncestorDirectoriesToKeep = path.Count(x => x == System.IO.Path.DirectorySeparatorChar || x == System.IO.Path.AltDirectorySeparatorChar);
-            if ((path.EndsWith(System.IO.Path.DirectorySeparatorChar) || path.EndsWith(System.IO.Path.AltDirectorySeparatorChar)) && path.Length > 1)
-            {
-                numberOfAncestorDirectoriesToKeep--;
-            }
-            return numberOfAncestorDirectoriesToKeep;
-        }
-
-        private void CreateZipArchive()
-        {
-            ZipArchive zipArchive = ZipArchive.Create(DestinationPath);
-
-            foreach (var currentItem in _inputPaths)
-            {
-                zipArchive.AddItem(currentItem);
-            }
-
-            zipArchive.Dispose();
         }
 
         //Get the full destination path given DestinationPath parameter

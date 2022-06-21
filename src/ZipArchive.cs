@@ -18,6 +18,8 @@ namespace Microsoft.PowerShell.Archive
 
         private bool disposedValue;
 
+        public System.IO.Compression.CompressionLevel CompressionLevel { get; set; }
+
         public ZipArchive(string destinationPath, System.IO.FileStream archiveFileStream, System.IO.Compression.ZipArchive zipArchive)
         {
             _destinationPath = destinationPath;
@@ -36,58 +38,33 @@ namespace Microsoft.PowerShell.Archive
             return archive;
         }
 
-        public void AddFile(string fileFullPath, string? sourceDirectoryFullPath)
+        public static ZipArchive OpenForUpdating(string destinationPath)
         {
-            var entryName = (sourceDirectoryFullPath is not null) ? fileFullPath.Replace(sourceDirectoryFullPath, "").Trim() : System.IO.Path.GetFileName(fileFullPath);
-            entryName = entryName.Replace(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+            System.IO.FileStream archiveStream = new FileStream(destinationPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            var zipArchive = new System.IO.Compression.ZipArchive(archiveStream, System.IO.Compression.ZipArchiveMode.Update, leaveOpen: false);
 
-            _zipArchive.CreateEntryFromFile(fileFullPath, entryName, CompressionLevel.Optimal);
+            ZipArchive archive = new ZipArchive(destinationPath, archiveStream, zipArchive);
+            return archive;
         }
 
-        public void AddItem(string itemFullPath)
+        public void AddItem(EntryRecord entry)
         {
-            if (System.IO.File.Exists(itemFullPath))
+            string entryName = entry.Name.Replace(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+            if (entryName.EndsWith(System.IO.Path.AltDirectorySeparatorChar))
             {
-                AddFile(itemFullPath, null);
+                //Just create an entry
+                _zipArchive.CreateEntry(entryName);
             } else
             {
-                AddDirectory(itemFullPath, null);
+                _zipArchive.CreateEntryFromFile(entry.FullPath, entryName, CompressionLevel);
             }
         }
 
-        public void AddDirectory(string directoryFullPath, string? sourceDirectoryFullPath)
+        public void SetCompressionLevel(string? compressionLevel)
         {
-            System.IO.DirectoryInfo info = new DirectoryInfo(directoryFullPath);
-
-
-            var subfiles = info.GetFiles();
-            var subdirectories = info.GetDirectories();
-            if (subfiles.Length + subdirectories.Length == 0)
-            {
-                var entryName = (sourceDirectoryFullPath is not null) ? directoryFullPath.Replace(sourceDirectoryFullPath, "").Trim() : System.IO.Path.GetFileName(directoryFullPath);
-                entryName = entryName.Replace(System.IO.Path.PathSeparator, System.IO.Path.AltDirectorySeparatorChar);
-                entryName += System.IO.Path.AltDirectorySeparatorChar;
-                _zipArchive.CreateEntry(entryName);
-                return;
-            }
-
-            //Add subfiles and subdirectories
-
-            if (sourceDirectoryFullPath is null)
-            {
-                sourceDirectoryFullPath = info.Parent.FullName;
-                if (!sourceDirectoryFullPath.EndsWith(System.IO.Path.DirectorySeparatorChar)) sourceDirectoryFullPath += System.IO.Path.DirectorySeparatorChar.ToString();
-            }
-                foreach (var subfile in subfiles)
-            {
-                AddFile(subfile.FullName, sourceDirectoryFullPath);
-            }
-
-            foreach (var directory in subdirectories)
-            {
-                AddDirectory(directory.FullName, sourceDirectoryFullPath);
-            }
-
+            if (compressionLevel == "Optimal") CompressionLevel = CompressionLevel.Optimal;
+            else if (compressionLevel == "Fastest") CompressionLevel = CompressionLevel.Fastest;
+            else CompressionLevel = CompressionLevel.NoCompression;
         }
 
         protected virtual void Dispose(bool disposing)
