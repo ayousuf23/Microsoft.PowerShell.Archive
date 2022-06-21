@@ -8,17 +8,42 @@
     ".NETCoreApp,Version=v7.0": {
       "Microsoft.PowerShell.Archive/1.0.0": {
         "dependencies": {
-          "PowerShellStandard.Library": "7.0.0-preview.1"
+          "Microsoft.PowerShell.Commands.Management": "7.3.0.0",
+          "System.Management.Automation": "7.3.0.0"
         },
         "runtime": {
           "Microsoft.PowerShell.Archive.dll": {}
         }
       },
-      "PowerShellStandard.Library/7.0.0-preview.1": {
+      "Microsoft.PowerShell.Commands.Management/7.3.0.0": {
         "runtime": {
-          "lib/netstandard2.0/System.Management.Automation.dll": {
-            "assemblyVersion": "1.0.0.0",
-            "fileVersion": "1.0.0.42"
+          "Microsoft.PowerShell.Commands.Management.dll": {
+            "assemblyVersion": "7.3.0.0",
+            "fileVersion": "7.3.0.0"
+          }
+        }
+      },
+      "System.Management.Automation/7.3.0.0": {
+        "runtime": {
+          "System.Management.Automation.dll": {
+            "assemblyVersion": "7.3.0.0",
+            "fileVersion": "7.3.0.0"
+          }
+        }
+      },
+      "Microsoft.PowerShell.Security/7.3.0.0": {
+        "runtime": {
+          "Microsoft.PowerShell.Security.dll": {
+            "assemblyVersion": "7.3.0.0",
+            "fileVersion": "7.3.0.0"
+          }
+        }
+      },
+      "Microsoft.PowerShell.CoreCLR.Eventing/7.3.0.0": {
+        "runtime": {
+          "Microsoft.PowerShell.CoreCLR.Eventing.dll": {
+            "assemblyVersion": "7.3.0.0",
+            "fileVersion": "7.3.0.0"
           }
         }
       }
@@ -30,12 +55,25 @@
       "serviceable": false,
       "sha512": ""
     },
-    "PowerShellStandard.Library/7.0.0-preview.1": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-vd2iKiQjgB/Lh3270aMgdq/NdVq/qNHsLM8P7k/oD3hALG1UOzePa62TOSK6RlQClfXW1xI9Y1e+haHlUkF3PA==",
-      "path": "powershellstandard.library/7.0.0-preview.1",
-      "hashPath": "powershellstandard.library.7.0.0-preview.1.nupkg.sha512"
+    "Microsoft.PowerShell.Commands.Management/7.3.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.Management.Automation/7.3.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.PowerShell.Security/7.3.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.PowerShell.CoreCLR.Eventing/7.3.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
     }
   }
 }

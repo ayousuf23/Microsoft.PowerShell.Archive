@@ -13,7 +13,12 @@
 	</PropertyGroup>
   
 	<ItemGroup>
-	  <PackageReference Include="PowerShellStandard.Library" Version="7.0.0-preview.1" />
+	  <Reference Include="Microsoft.PowerShell.Commands.Management">
+	    <HintPath>..\..\PowerShell\src\Microsoft.PowerShell.Commands.Management\bin\Debug\net7.0\Microsoft.PowerShell.Commands.Management.dll</HintPath>
+	  </Reference>
+	  <Reference Include="System.Management.Automation">
+	    <HintPath>..\..\PowerShell\src\System.Management.Automation\bin\Debug\net7.0\System.Management.Automation.dll</HintPath>
+	  </Reference>
 	</ItemGroup>
 
 </Project>

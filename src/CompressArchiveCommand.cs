@@ -92,7 +92,7 @@ namespace Microsoft.PowerShell.Archive
 
             //Step 5: Resolve Path
             List<ProcessingPath> processingPaths;
-            if (ParameterSetName.StartsWith("Path")) processingPaths = ResolveNonLiteralPaths();
+            if (ParameterSetName.StartsWith("Path")) processingPaths = ResolveNonLiteralPaths(_inputPaths, null);
             else processingPaths = ResolveLiteralPaths();
 
             //Step 6: Create the archive
@@ -101,6 +101,8 @@ namespace Microsoft.PowerShell.Archive
 
             //Compress each file
             //CreateZipArchive();
+
+            
 
 
             base.EndProcessing();
@@ -129,7 +131,7 @@ namespace Microsoft.PowerShell.Archive
                     if (!unresolvedPath.EndsWith(System.IO.Path.PathSeparator)) unresolvedPath += System.IO.Path.DirectorySeparatorChar;
 
                     //Add '*' at the end and call ResolveNonLiteralPaths if the directory is not empty
-                    if (System.IO.Directory.EnumerateFileSystemEntries(unresolvedPath).Count() > 0)
+                    /*if (System.IO.Directory.EnumerateFileSystemEntries(unresolvedPath).Count() > 0)
                     {
                         //Add '*' to end
                         unresolvedPath += "*";
@@ -139,7 +141,7 @@ namespace Microsoft.PowerShell.Archive
                         directoryProcessingPaths.ForEach(x => x = new ProcessingPath(x.FullPath, numberOfAncestorDirectoriesToKeep + x.NumberOfAncestorDirectoriesToKeep));
                         processingPaths.AddRange(directoryProcessingPaths);
                         continue;
-                    }
+                    }*/
                 } 
                 else if (!System.IO.File.Exists(unresolvedPath))
                 {
@@ -171,11 +173,11 @@ namespace Microsoft.PowerShell.Archive
         }
 
         //Need to add a parameter for a collection
-        private List<ProcessingPath> ResolveNonLiteralPaths()
+        private List<ProcessingPath> ResolveNonLiteralPaths(IEnumerable<string> sourcePaths, string? entryPrefix)
         {
             List<ProcessingPath> processingPaths = new List<ProcessingPath>();
             List<string> nonexistantPaths = new List<string>();
-            foreach (var path in _inputPaths)
+            foreach (var path in sourcePaths)
             {
                 //Get the unresolved path
                 ProviderInfo info;
@@ -188,29 +190,39 @@ namespace Microsoft.PowerShell.Archive
                     continue;
                 }
 
-                //Get # of ancestor directories to keep
-                int numberOfAncestorDirectoriesToKeep = path.Count(x => x == System.IO.Path.DirectorySeparatorChar || x == System.IO.Path.AltDirectorySeparatorChar);
-                if (path.EndsWith(System.IO.Path.DirectorySeparatorChar) && path.Length > 1)
-                {
-                    numberOfAncestorDirectoriesToKeep--;
-                }
+               
 
                 foreach (var resolvedPath in resolvedPaths)
                 {
                     string finalResolvedPath = resolvedPath;
+
+                    if (entryPrefix == null)
+                    {
+                        //Get number of ancestor directories in path
+                        int numberOfAncestorDirectoriesToKeep = GetNumberOfAncestorDirectories(path);
+                        entryPrefix = GetEntryPrefixForPath(new string(finalResolvedPath), numberOfAncestorDirectoriesToKeep);
+                        WriteObject($"For path {resolvedPath}: {numberOfAncestorDirectoriesToKeep}");
+                    }
 
                     //Check if the path exists
                     if (System.IO.Directory.Exists(finalResolvedPath))
                     {
                         // Make sure the path has a '/' at the end
                         if (!finalResolvedPath.EndsWith(System.IO.Path.PathSeparator)) finalResolvedPath += System.IO.Path.DirectorySeparatorChar;
+
+                        //If the directory has entries, recurse to get those entries
+                        if (GetDirectoryChildren(finalResolvedPath, entryPrefix, processingPaths)) continue;
+
                     }
-                    
-                    WriteObject($"For path {resolvedPath}: {numberOfAncestorDirectoriesToKeep}");
+
+                    WriteObject($"For path {resolvedPath}: {entryPrefix}");
+
+
+
 
                     //Finally, create a struct with path info
-                    ProcessingPath processingPath = new ProcessingPath(finalResolvedPath, numberOfAncestorDirectoriesToKeep);
-                    processingPaths.Add(processingPath);
+                    //ProcessingPath processingPath = new ProcessingPath(finalResolvedPath, numberOfAncestorDirectoriesToKeep);
+                    //processingPaths.Add(processingPath);
                 }
             }
 
@@ -226,6 +238,57 @@ namespace Microsoft.PowerShell.Archive
             }
 
             return processingPaths;
+        }
+
+        private bool GetDirectoryChildren(string directoryPath, string entryPrefix, List<ProcessingPath> processingPaths)
+        {
+
+            //Add '*' at the end and call ResolveNonLiteralPaths if the directory is not empty
+            if (System.IO.Directory.EnumerateFileSystemEntries(directoryPath).Count() > 0)
+            {
+                //Add '*' to end
+                directoryPath += "*";
+
+                //Call ResolveNonLiteralPaths
+                List<ProcessingPath> directoryProcessingPaths = ResolveNonLiteralPaths(new string[] { directoryPath }, entryPrefix);
+                processingPaths.AddRange(directoryProcessingPaths);
+                return true;
+            }
+            return false;
+        }
+
+        private string GetEntryPrefixForPath(string path, int numberOfAncestorDirectories)
+        {
+            DirectoryInfo ancestorDirectory;
+            if (path.EndsWith(System.IO.Path.DirectorySeparatorChar))
+            {
+                ancestorDirectory = new DirectoryInfo(path);
+                ancestorDirectory = ancestorDirectory.Parent;
+            }
+            else
+            {
+                System.IO.FileInfo fileInfo = new System.IO.FileInfo(path);
+                ancestorDirectory = fileInfo.Directory;
+            }
+
+
+
+            while (numberOfAncestorDirectories > 0)
+            {
+                ancestorDirectory = ancestorDirectory.Parent;
+                numberOfAncestorDirectories--;
+            }
+            return ancestorDirectory.FullName;
+        }
+
+        private int GetNumberOfAncestorDirectories(string path)
+        {
+            int numberOfAncestorDirectoriesToKeep = path.Count(x => x == System.IO.Path.DirectorySeparatorChar || x == System.IO.Path.AltDirectorySeparatorChar);
+            if ((path.EndsWith(System.IO.Path.DirectorySeparatorChar) || path.EndsWith(System.IO.Path.AltDirectorySeparatorChar)) && path.Length > 1)
+            {
+                numberOfAncestorDirectoriesToKeep--;
+            }
+            return numberOfAncestorDirectoriesToKeep;
         }
 
         private void CreateZipArchive()
