@@ -1,15 +1,29 @@
 # To-DO List
 
-## Remaining Items
+## Needs Testing
 
 - Update support
 
+- Confirm support
+
 - Force support
 
-- Confirm support
+- PassThru support
+
+## Remaining Items
+
+- Tar support
 
 - Verbose support
 
+- Progress bar and output display
+
 - Flattening support
 
-- Tar support
+
+
+- Include support
+
+- Exclude support
+
+- Filter support

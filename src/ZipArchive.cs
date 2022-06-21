@@ -16,15 +16,18 @@ namespace Microsoft.PowerShell.Archive
 
         private System.IO.FileStream _archiveFileStream;
 
+        private System.IO.Compression.ZipArchiveMode _archiveMode;
+
         private bool disposedValue;
 
         public System.IO.Compression.CompressionLevel CompressionLevel { get; set; }
 
-        public ZipArchive(string destinationPath, System.IO.FileStream archiveFileStream, System.IO.Compression.ZipArchive zipArchive)
+        public ZipArchive(string destinationPath, System.IO.FileStream archiveFileStream, System.IO.Compression.ZipArchive zipArchive, System.IO.Compression.ZipArchiveMode archiveMode)
         {
             _destinationPath = destinationPath;
             _zipArchive = zipArchive;
             _archiveFileStream = archiveFileStream;
+            _archiveMode = archiveMode;
         }
 
         public static ZipArchive Create(string destinationPath)
@@ -34,7 +37,7 @@ namespace Microsoft.PowerShell.Archive
             var zipArchive = new System.IO.Compression.ZipArchive(archiveStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: false);
 
 
-            ZipArchive archive = new ZipArchive(destinationPath, archiveStream, zipArchive);
+            ZipArchive archive = new ZipArchive(destinationPath, archiveStream, zipArchive, System.IO.Compression.ZipArchiveMode.Create);
             return archive;
         }
 
@@ -43,19 +46,24 @@ namespace Microsoft.PowerShell.Archive
             System.IO.FileStream archiveStream = new FileStream(destinationPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             var zipArchive = new System.IO.Compression.ZipArchive(archiveStream, System.IO.Compression.ZipArchiveMode.Update, leaveOpen: false);
 
-            ZipArchive archive = new ZipArchive(destinationPath, archiveStream, zipArchive);
+            ZipArchive archive = new ZipArchive(destinationPath, archiveStream, zipArchive, System.IO.Compression.ZipArchiveMode.Update);
             return archive;
         }
 
         public void AddItem(EntryRecord entry)
         {
             string entryName = entry.Name.Replace(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+            var entryInArchive = (_archiveMode == ZipArchiveMode.Create) ? null : _zipArchive.GetEntry(entryName);
             if (entryName.EndsWith(System.IO.Path.AltDirectorySeparatorChar))
             {
                 //Just create an entry
-                _zipArchive.CreateEntry(entryName);
+                if (entryInArchive != null) _zipArchive.CreateEntry(entryName);
             } else
             {
+                if (entryInArchive != null)
+                {
+                    entryInArchive.Delete();
+                }
                 _zipArchive.CreateEntryFromFile(entry.FullPath, entryName, CompressionLevel);
             }
         }

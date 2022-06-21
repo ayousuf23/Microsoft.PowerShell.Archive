@@ -4,6 +4,7 @@ using System.Management.Automation;
 namespace Microsoft.PowerShell.Archive
 {
     [Cmdlet("Compress", "Archive", SupportsShouldProcess=true)]
+    [OutputType(typeof(System.IO.FileInfo))]
     public class CompressArchiveCommand : Microsoft.PowerShell.Commands.CoreCommandBase
     {
 
@@ -38,7 +39,10 @@ namespace Microsoft.PowerShell.Archive
         [Parameter(Mandatory = true, ParameterSetName = "LiteralPathWithForce", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
         public override SwitchParameter Force { get { return base.Force; } set { base.Force = value; } }
 
+        [Parameter()]
         public SwitchParameter PassThru { get; set; } = false;
+
+        public string? Format { get; set; }
 
 
         //Store source paths as they were inputted
@@ -68,8 +72,6 @@ namespace Microsoft.PowerShell.Archive
             if (ParameterSetName.StartsWith("Path")) _inputPaths.AddRange(Path);
             else _inputPaths.AddRange(LiteralPath);
 
-            
-            
 
             base.ProcessRecord();
         }
@@ -98,31 +100,59 @@ namespace Microsoft.PowerShell.Archive
                 ThrowTerminatingError(errorRecord);
             }
 
+            if (entryRecords.Count == 0)
+            {
+                WriteVerbose("Creating an archive containing 0 entries");
+            }
+
+            Format = "Tar";
+
             if (ShouldProcess(DestinationPath, "Compress-Archive"))
             {
                 //Create an archive
-                ZipArchive zipArchive;
+                ZipArchive zipArchive = null;
+                TarArchive tarArchive = null;
                 if (Update)
                 {
                     zipArchive = ZipArchive.OpenForUpdating(DestinationPath);
                 }
                 else
                 {
-                    zipArchive = ZipArchive.Create(DestinationPath);
+                    if (Format == "Tar")
+                    {
+                        tarArchive = TarArchive.Create(DestinationPath);
+                    } else
+                    {
+                        zipArchive = ZipArchive.Create(DestinationPath);
+                    }
                 }
-                zipArchive.SetCompressionLevel(CompressionLevel);
+                if (Format == "Zip") zipArchive.SetCompressionLevel(CompressionLevel);
 
+                int archivedEntries = 0;
                 //Process the entry records
                 foreach (var entry in entryRecords)
                 {
-                    zipArchive.AddItem(entry);
+                    if (Format == "Zip") zipArchive.AddItem(entry);
+                    if (Format == "Tar") tarArchive.AddItem(entry);
+                    archivedEntries++;
+                    WriteVerbose($"Archived {entry.FullPath} ({archivedEntries}/{entryRecords.Count})");
+                    float percentComplete = archivedEntries / entryRecords.Count * 100;
+                    ProgressRecord progressRecord = new ProgressRecord(1, "Archiving in progress", $"{percentComplete}%");
+                    WriteProgress(progressRecord);
                 }
 
                 //Dispose the archive
-                zipArchive.Dispose();
+                if (Format == "Zip") zipArchive.Dispose();
+                if (Format == "Tar") tarArchive.Dispose();
             }
 
-            
+
+            if (PassThru)
+            {
+                //Return a file representing the archive
+                System.IO.FileInfo archiveFile = new FileInfo(DestinationPath);
+                WriteObject(archiveFile);
+            }
 
 
             base.EndProcessing();
@@ -149,7 +179,13 @@ namespace Microsoft.PowerShell.Archive
                 {
                     //Remove the file
                     System.IO.File.Delete(path);
-                } else
+                    WriteVerbose("Archive file already exists, deleting it");
+                } else if (Update)
+                {
+                    //Check file permissions 
+                    //Throw an error if the file is read only
+                }
+                else
                 {
                     //Throw an error 
                     var errorMessage = String.Format(ErrorMessages.ZipFileExistError, path);
@@ -157,6 +193,9 @@ namespace Microsoft.PowerShell.Archive
                     ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletArchiveExists", System.Management.Automation.ErrorCategory.InvalidArgument, path);
                     ThrowTerminatingError(errorRecord);
                 }
+            } else if (!System.IO.File.Exists(path) && Update)
+            {
+                //Throw an error
             }
 
             return path;
