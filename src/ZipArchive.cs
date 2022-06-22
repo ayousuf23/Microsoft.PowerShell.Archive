@@ -57,7 +57,7 @@ namespace Microsoft.PowerShell.Archive
             if (entryName.EndsWith(System.IO.Path.AltDirectorySeparatorChar))
             {
                 //Just create an entry
-                if (entryInArchive != null) _zipArchive.CreateEntry(entryName);
+                if (entryInArchive == null) _zipArchive.CreateEntry(entryName);
             } else
             {
                 if (entryInArchive != null)

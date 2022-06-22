@@ -10,17 +10,17 @@
 
 - PassThru support
 
-## Remaining Items
-
 - Tar support
+
+- Tar.gz support
 
 - Verbose support
 
 - Progress bar and output display
 
+## Remaining Items
+
 - Flattening support
-
-
 
 - Include support
 

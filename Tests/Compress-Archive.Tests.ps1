@@ -14,6 +14,9 @@
  
  Describe("Microsoft.PowerShell.Archive tests") {
     BeforeAll {
+
+        $DS = [System.IO.Path]::DirectorySeparatorChar
+
         $originalProgressPref = $ProgressPreference
         $ProgressPreference = "SilentlyContinue"
         $originalPSModulePath = $env:PSModulePath
@@ -54,6 +57,8 @@
                 $actualEntryCount = $zipArchive.Entries.Count
                 $actualEntryCount | Should -Be $expectedEntries.Length
 
+                # Get a list of 
+
                 ForEach ($expectedArchiveEntry in $expectedEntries) {
                     $expectedArchiveEntry | Should -BeIn $zipArchive.Entries
                 }
@@ -88,7 +93,7 @@
                 }
                 catch
                 {
-                    $_.FullyQualifiedErrorId | Should -Be "ParameterArgumentValidationError,Compress-Archive"
+                    $_.FullyQualifiedErrorId | Should -Be "ParameterArgumentValidationError,Microsoft.PowerShell.Archive.CompressArchiveCommand"
                 }
             }
         
@@ -107,7 +112,7 @@
                 }
                 catch
                 {
-                    $_.FullyQualifiedErrorId | Should -Be "ParameterArgumentValidationError,Compress-Archive"
+                    $_.FullyQualifiedErrorId | Should -Be "ParameterArgumentValidationError,Microsoft.PowerShell.Archive.CompressArchiveCommand"
                 }
             }
         
@@ -167,7 +172,7 @@
             CompressArchiveInValidPathValidator "$TestDrive" "$TestDrive$($DS)NonExistingDirectory$($DS)sample.zip" "$TestDrive$($DS)NonExistingDirectory$($DS)sample.zip" "ArchiveCmdletPathNotFound,Compress-Archive"
 
             $path = @("$TestDrive", "$TestDrive$($DS)InvalidPath")
-            CompressArchiveInValidPathValidator $path $TestDrive "$TestDrive$($DS)InvalidPath" "ArchiveCmdletPathNotFound,Compress-Archive"
+            CompressArchiveInValidPathValidator $path $TestDrive "$TestDrive$($DS)InvalidPath" "PathNotFound,Microsoft.PowerShell.Archive.CompressArchiveCommand"
         }
 
         It "Validate error from Compress-Archive when archive file already exists and -Update parameter is not specified" {
@@ -182,7 +187,7 @@
             }
             catch
             {
-                $_.FullyQualifiedErrorId | Should -Be "ArchiveFileExists,Compress-Archive"
+                $_.FullyQualifiedErrorId | Should -Be "ArchiveFileExists,Microsoft.PowerShell.Archive.CompressArchiveCommand"
             }
         }
 
@@ -199,11 +204,11 @@
             }
             catch
             {
-                $_.FullyQualifiedErrorId | Should -Be "DuplicatePathFound,Compress-Archive"
+                $_.FullyQualifiedErrorId | Should -Be "DuplicatePathFound,Microsoft.PowerShell.Archive.CompressArchiveCommand"
             }
         }
 
-        It "Validate error from Compress-Archive when duplicate paths are supplied as input to LiteralPath parameter" {
+        It "Validate error from Compress-Archive when duplicate paths are supplied as input to LiteralPath parameter" -Skip {
             $sourcePath = @(
                 "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt",
                 "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt")
@@ -216,7 +221,7 @@
             }
             catch
             {
-                $_.FullyQualifiedErrorId | Should -Be "DuplicatePathFound,Compress-Archive"
+                $_.FullyQualifiedErrorId | Should -Be "DuplicatePathFound,Microsoft.PowerShell.Archive.CompressArchiveCommand"
             }
         }
     }
@@ -257,7 +262,7 @@
             $destinationPath | Should -Exist
         }
 
-        It "Validate that an empty folder can be compressed" {
+        It "Validate that an empty folder can be compressed" -Tag "this" {
             $sourcePath = "$TestDrive$($DS)EmptyDir"
             $destinationPath = "$TestDrive$($DS)EmptyDir.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath

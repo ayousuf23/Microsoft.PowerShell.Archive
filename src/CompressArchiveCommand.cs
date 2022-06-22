@@ -42,7 +42,8 @@ namespace Microsoft.PowerShell.Archive
         [Parameter()]
         public SwitchParameter PassThru { get; set; } = false;
 
-        public string? Format { get; set; }
+        [Parameter()]
+        public string? Format { get; set; } = null;
 
 
         //Store source paths as they were inputted
@@ -96,7 +97,7 @@ namespace Microsoft.PowerShell.Archive
                 var commaSeperatedDuplicates = String.Join(",", duplicates);
                 var errorMessage = String.Format(ErrorMessages.DuplicatePathFoundError, parameterName, commaSeperatedDuplicates);
                 var exception = new System.InvalidOperationException(errorMessage);
-                ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletDuplicatePaths", System.Management.Automation.ErrorCategory.InvalidArgument, duplicates);
+                ErrorRecord errorRecord = new ErrorRecord(exception, "DuplicatePathFound", System.Management.Automation.ErrorCategory.InvalidArgument, duplicates);
                 ThrowTerminatingError(errorRecord);
             }
 
@@ -105,26 +106,23 @@ namespace Microsoft.PowerShell.Archive
                 WriteVerbose("Creating an archive containing 0 entries");
             }
 
-            Format = "Tar";
-
             if (ShouldProcess(DestinationPath, "Compress-Archive"))
             {
                 //Create an archive
                 ZipArchive zipArchive = null;
                 TarArchive tarArchive = null;
+                TarGzArchive tarGzArchive = null;
                 if (Update)
                 {
-                    zipArchive = ZipArchive.OpenForUpdating(DestinationPath);
+                    if (Format == "Zip") zipArchive = ZipArchive.OpenForUpdating(DestinationPath);
+                    if (Format == "Tar") tarArchive = TarArchive.OpenForUpdating(DestinationPath);
+                    if (Format == "tar.gz") tarGzArchive = TarGzArchive.OpenForUpdating(DestinationPath);
                 }
                 else
                 {
-                    if (Format == "Tar")
-                    {
-                        tarArchive = TarArchive.Create(DestinationPath);
-                    } else
-                    {
-                        zipArchive = ZipArchive.Create(DestinationPath);
-                    }
+                    if (Format == "Tar") tarArchive = TarArchive.Create(DestinationPath);
+                    else if (Format == "Zip") zipArchive = ZipArchive.Create(DestinationPath);
+                    else if (Format == "tar.gz") tarGzArchive = TarGzArchive.Create(DestinationPath);
                 }
                 if (Format == "Zip") zipArchive.SetCompressionLevel(CompressionLevel);
 
@@ -134,6 +132,7 @@ namespace Microsoft.PowerShell.Archive
                 {
                     if (Format == "Zip") zipArchive.AddItem(entry);
                     if (Format == "Tar") tarArchive.AddItem(entry);
+                    if (Format == "tar.gz") tarGzArchive.AddItem(entry);
                     archivedEntries++;
                     WriteVerbose($"Archived {entry.FullPath} ({archivedEntries}/{entryRecords.Count})");
                     float percentComplete = archivedEntries / entryRecords.Count * 100;
@@ -144,14 +143,22 @@ namespace Microsoft.PowerShell.Archive
                 //Dispose the archive
                 if (Format == "Zip") zipArchive.Dispose();
                 if (Format == "Tar") tarArchive.Dispose();
-            }
+                if (Format == "tar.gz")
+                {
+                    tarGzArchive.Compress();
+                    tarGzArchive.Dispose();
+                }
+
+                WriteVerbose($"Created Archive {DestinationPath}");
 
 
-            if (PassThru)
-            {
-                //Return a file representing the archive
-                System.IO.FileInfo archiveFile = new FileInfo(DestinationPath);
-                WriteObject(archiveFile);
+                if (PassThru)
+                {
+                    //Return a file representing the archive
+                    System.IO.FileInfo archiveFile = new FileInfo(DestinationPath);
+                    WriteObject(archiveFile);
+                }
+
             }
 
 
@@ -169,7 +176,15 @@ namespace Microsoft.PowerShell.Archive
             {
                 //if so, append folder's file name to it
                 var directoryInfo = new DirectoryInfo(path);
-                path += directoryInfo.Name + ".zip";
+                if (Format == null)
+                {
+                    Format = "Zip";
+                    WriteVerbose("Format not specified, zip chosen by default");
+                }
+                if (Format == "Zip") path += directoryInfo.Name + ".zip";
+                else if (Format == "Tar") path += directoryInfo.Name + ".tar";
+                else if (Format == "tar.gz") path += directoryInfo.Name + ".tar.gz";
+                WriteVerbose("Destination path is a folder, setting archive name as directory name + file extension");
             }
 
             //Check if the path points to an existing file
@@ -177,9 +192,16 @@ namespace Microsoft.PowerShell.Archive
             {
                 if (Force)
                 {
-                    //Remove the file
-                    System.IO.File.Delete(path);
-                    WriteVerbose("Archive file already exists, deleting it");
+                    //Remove the file if not on what if mode
+                    object whatIfValue;
+                    MyInvocation.BoundParameters.TryGetValue("WhatIf", out whatIfValue);
+                    
+                    if (whatIfValue == null || (whatIfValue is bool && ((bool)whatIfValue) == false)) {
+                        System.IO.File.Delete(path);
+                        WriteVerbose("Archive file already exists, deleting it");
+                    }
+                    
+                    
                 } else if (Update)
                 {
                     //Check file permissions 
@@ -190,12 +212,60 @@ namespace Microsoft.PowerShell.Archive
                     //Throw an error 
                     var errorMessage = String.Format(ErrorMessages.ZipFileExistError, path);
                     var exception = new System.InvalidOperationException(errorMessage);
-                    ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveCmdletArchiveExists", System.Management.Automation.ErrorCategory.InvalidArgument, path);
+                    ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveFileExists", System.Management.Automation.ErrorCategory.InvalidArgument, path);
                     ThrowTerminatingError(errorRecord);
                 }
+
             } else if (!System.IO.File.Exists(path) && Update)
             {
                 //Throw an error
+                var errorMessage = "Archive file does not exist";
+                var exception = new System.InvalidOperationException(errorMessage);
+                ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveFileNotFound", System.Management.Automation.ErrorCategory.InvalidArgument, path);
+                ThrowTerminatingError(errorRecord);
+            }
+
+            //Check if it has an extension, and if not, add the appropriate extension
+            string extension = System.IO.Path.GetExtension(path);
+
+            //Check if the destination path has an extension and set the Format accordingly
+            if (extension == ".zip" && Format == null)
+            {
+                Format = "Zip";
+                WriteVerbose("Setting format to zip");
+            }
+            else if (extension == ".tar" && Format == null)
+            {
+                Format = "Tar";
+                WriteVerbose("Setting format to tar");
+            }
+            else if (extension == ".gz" && Format == null)
+            {
+                Format = "tar.gz";
+                WriteVerbose("Setting format to tar.gz");
+            } else if (Format == null)
+            {
+                Format = "Zip";
+                WriteVerbose("Format not specified, zip chosen by default");
+            }
+
+            if (!Update)
+            {
+                if (Format == "Zip" && extension != ".zip")
+                {
+                    path += ".zip";
+                    WriteVerbose("Adding .zip extension to destination path");
+                }
+                if (Format == "Tar" && extension != ".tar")
+                {
+                    path += ".tar";
+                    WriteVerbose("Adding .tar extension to destination path");
+                }
+                if (Format == "tar.gz" && extension != ".tar.gz")
+                {
+                    path += ".tar.gz";
+                    WriteVerbose("Adding .tar.gz extension to destination path");
+                }
             }
 
             return path;

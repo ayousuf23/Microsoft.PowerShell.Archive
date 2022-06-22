@@ -103,6 +103,8 @@ Notes:
 
 ### `-WhatIf` parameter
 
+- **[NEEDED]** Validate destination file is not deleted when `-Force` is specified in addition to `-WhatIf` 
+
 ### `-Confirm` parameter
 
 ### File extension
