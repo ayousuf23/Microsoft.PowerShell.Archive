@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Management.Automation;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,15 +15,50 @@ namespace Microsoft.PowerShell.Archive
         {
             //Get entry record for non literal path while preserving relative directory structure
 
+            List<EntryRecord> result = new List<EntryRecord>();
+            PathHelper pathHelper = new PathHelper();
+            pathHelper.Cmdlet = this;
+
             //If path is absolute, process it normally
             foreach (var path in paths)
             {
                 if (IsAbsolutePath(path) || PathsContainsTilda(path))
                 {
-
+                    result.AddRange(pathHelper.GetNonLiteralPath(new string[] { path }));
                 } else
                 {
+                    foreach (var resolvedPath in Cmdlet.GetResolvedProviderPathFromPSPath(path, out var providerPath))
+                    {
+                        //Omitted: If the path is not from the filesystem, throw an error
 
+                        if (entryPrefix == null)
+                        {
+                            Cmdlet.WriteObject($"Parent: {preservingPathHelper.GetTopMostDirectory(path, resolvedPath)} Resolved path: {resolvedPath}");
+                        }
+
+
+                        //Set entry record
+                        EntryRecord record = new EntryRecord();
+                        string recordEntryPrefix = entryPrefix ?? System.IO.Path.GetDirectoryName(resolvedPath) + System.IO.Path.DirectorySeparatorChar;
+                        string recordEntryPrefix = 
+
+
+                        string fullPath = resolvedPath;
+                        if (System.IO.Directory.Exists(resolvedPath))
+                        {
+                            if (!resolvedPath.EndsWith(System.IO.Path.DirectorySeparatorChar)) fullPath += System.IO.Path.DirectorySeparatorChar;
+
+                            foreach (string child in System.IO.Directory.EnumerateFileSystemEntries(resolvedPath, "*"))
+                            {
+                                records.AddRange(GetNonLiteralPath(new string[] { child }, recordEntryPrefix));
+                            }
+
+                        }
+
+                        result.FullPath = resolvedPath;
+                        result.Name = fullPath.Replace(recordEntryPrefix, "");
+                        result.Add(record);
+                    }
                 }
             }
 
