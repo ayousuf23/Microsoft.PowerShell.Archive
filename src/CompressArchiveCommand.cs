@@ -161,7 +161,6 @@ namespace Microsoft.PowerShell.Archive
 
             }
 
-
             base.EndProcessing();
         }
 

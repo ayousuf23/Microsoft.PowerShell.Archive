@@ -10,6 +10,7 @@
    
 	  <BaseOutputPath>..\build</BaseOutputPath>
 	  <BaseIntermediateOutputPath>$(SolutionDir)\..\obj\</BaseIntermediateOutputPath>
+	  <SignAssembly>True</SignAssembly>
 	</PropertyGroup>
   
 	<ItemGroup>

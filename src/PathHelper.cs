@@ -16,6 +16,8 @@ namespace Microsoft.PowerShell.Archive
 
             List<EntryRecord> records = new List<EntryRecord>();
 
+            PreservingPathHelper preservingPathHelper = new PreservingPathHelper();
+
             //Step 1: Go through each path
 
             foreach (var path in paths)
@@ -24,6 +26,12 @@ namespace Microsoft.PowerShell.Archive
                 foreach (var resolvedPath in Cmdlet.GetResolvedProviderPathFromPSPath(path, out var providerPath))
                 {
                     //Omitted: If the path is not from the filesystem, throw an error
+
+                    if (entryPrefix == null)
+                    {
+                        Cmdlet.WriteObject($"Parent: {preservingPathHelper.GetTopMostDirectory(path, resolvedPath)} Resolved path: {resolvedPath}");
+                    }
+                    
 
                     //Set entry record
                     EntryRecord record = new EntryRecord();
