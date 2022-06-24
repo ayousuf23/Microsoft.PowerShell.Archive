@@ -82,6 +82,10 @@ namespace Microsoft.PowerShell.Archive
             //Resolve the source paths
             PathHelper pathHelper = new PathHelper();
             pathHelper.Cmdlet = this;
+
+            PreservingPathHelper preservingPathHelper = new PreservingPathHelper();
+            preservingPathHelper.Cmdlet = this;
+
             List<EntryRecord> entryRecords = pathHelper.GetNonLiteralPath(Path);
 
             //Find duplicates from input paths
@@ -186,44 +190,6 @@ namespace Microsoft.PowerShell.Archive
                 WriteVerbose("Destination path is a folder, setting archive name as directory name + file extension");
             }
 
-            //Check if the path points to an existing file
-            if (System.IO.File.Exists(path))
-            {
-                if (Force)
-                {
-                    //Remove the file if not on what if mode
-                    object whatIfValue;
-                    MyInvocation.BoundParameters.TryGetValue("WhatIf", out whatIfValue);
-                    
-                    if (whatIfValue == null || (whatIfValue is bool && ((bool)whatIfValue) == false)) {
-                        System.IO.File.Delete(path);
-                        WriteVerbose("Archive file already exists, deleting it");
-                    }
-                    
-                    
-                } else if (Update)
-                {
-                    //Check file permissions 
-                    //Throw an error if the file is read only
-                }
-                else
-                {
-                    //Throw an error 
-                    var errorMessage = String.Format(ErrorMessages.ZipFileExistError, path);
-                    var exception = new System.InvalidOperationException(errorMessage);
-                    ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveFileExists", System.Management.Automation.ErrorCategory.InvalidArgument, path);
-                    ThrowTerminatingError(errorRecord);
-                }
-
-            } else if (!System.IO.File.Exists(path) && Update)
-            {
-                //Throw an error
-                var errorMessage = "Archive file does not exist";
-                var exception = new System.InvalidOperationException(errorMessage);
-                ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveFileNotFound", System.Management.Automation.ErrorCategory.InvalidArgument, path);
-                ThrowTerminatingError(errorRecord);
-            }
-
             //Check if it has an extension, and if not, add the appropriate extension
             string extension = System.IO.Path.GetExtension(path);
 
@@ -265,6 +231,47 @@ namespace Microsoft.PowerShell.Archive
                     path += ".tar.gz";
                     WriteVerbose("Adding .tar.gz extension to destination path");
                 }
+            }
+
+            //Check if the path points to an existing file
+            if (System.IO.File.Exists(path))
+            {
+                if (Force)
+                {
+                    //Remove the file if not on what if mode
+                    object whatIfValue;
+                    MyInvocation.BoundParameters.TryGetValue("WhatIf", out whatIfValue);
+
+                    if (whatIfValue == null || (whatIfValue is bool && ((bool)whatIfValue) == false))
+                    {
+                        System.IO.File.Delete(path);
+                        WriteVerbose("Archive file already exists, deleting it");
+                    }
+
+
+                }
+                else if (Update)
+                {
+                    //Check file permissions 
+                    //Throw an error if the file is read only
+                }
+                else
+                {
+                    //Throw an error 
+                    var errorMessage = String.Format(ErrorMessages.ZipFileExistError, path);
+                    var exception = new System.InvalidOperationException(errorMessage);
+                    ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveFileExists", System.Management.Automation.ErrorCategory.InvalidArgument, path);
+                    ThrowTerminatingError(errorRecord);
+                }
+
+            }
+            else if (!System.IO.File.Exists(path) && Update)
+            {
+                //Throw an error
+                var errorMessage = "Archive file does not exist";
+                var exception = new System.InvalidOperationException(errorMessage);
+                ErrorRecord errorRecord = new ErrorRecord(exception, "ArchiveFileNotFound", System.Management.Automation.ErrorCategory.InvalidArgument, path);
+                ThrowTerminatingError(errorRecord);
             }
 
             return path;
