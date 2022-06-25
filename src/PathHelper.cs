@@ -35,14 +35,18 @@ namespace Microsoft.PowerShell.Archive
                     
 
                     string fullPath = resolvedPath;
-                    if (System.IO.Directory.Exists(resolvedPath) && entryPrefix == null)
+                    if (System.IO.Directory.Exists(resolvedPath))
                     {
                         if (!resolvedPath.EndsWith(System.IO.Path.DirectorySeparatorChar)) fullPath += System.IO.Path.DirectorySeparatorChar;
 
-                        foreach (string child in System.IO.Directory.EnumerateFileSystemEntries(resolvedPath, Filter, SearchOption.AllDirectories))
+                        if (entryPrefix == null)
                         {
-                            records.AddRange(GetNonLiteralPath(new string[] { child }, recordEntryPrefix));
+                            foreach (string child in System.IO.Directory.EnumerateFileSystemEntries(resolvedPath, Filter, SearchOption.AllDirectories))
+                            {
+                                records.AddRange(GetNonLiteralPath(new string[] { child }, recordEntryPrefix));
+                            }
                         }
+                        
                         
                     } else if (entryPrefix == null)
                     {
@@ -50,8 +54,6 @@ namespace Microsoft.PowerShell.Archive
                         WildcardPattern wildcardPattern = new WildcardPattern(Filter);
                         if (!wildcardPattern.IsMatch(System.IO.Path.GetFileName(resolvedPath))) continue;
                     }
-
-                    System.IO.File.
 
                     record.FullPath = resolvedPath;
                     record.Name = fullPath.Replace(recordEntryPrefix, "");
