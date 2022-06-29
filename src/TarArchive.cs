@@ -12,7 +12,7 @@ namespace Microsoft.PowerShell.Archive
     {
         public System.IO.FileStream _archiveStream { get; }
 
-        private System.Formats.Tar.TarWriter _tarWriter;
+        private System.Formats.Tar.TarWriter? _tarWriter;
 
         private System.Formats.Tar.TarReader? _tarReader;
 
@@ -20,7 +20,7 @@ namespace Microsoft.PowerShell.Archive
 
         private bool disposedValue;
 
-        private TarArchive(FileStream archiveStream, TarWriter tarWriter, TarReader? tarReader, ZipArchiveMode archiveMode)
+        private TarArchive(FileStream archiveStream, TarWriter? tarWriter, TarReader? tarReader, ZipArchiveMode archiveMode)
         {
             _archiveStream = archiveStream;
             _tarWriter = tarWriter;
@@ -44,10 +44,17 @@ namespace Microsoft.PowerShell.Archive
 
         public static TarArchive OpenForUpdating(string destinationPath)
         {
-            System.IO.FileStream archiveStream = new FileStream(destinationPath, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
-            System.Formats.Tar.TarWriter tarWriter = new System.Formats.Tar.TarWriter(archiveStream, System.Formats.Tar.TarFormat.Gnu, false);
+            System.IO.FileStream archiveStream = new FileStream(destinationPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            System.Formats.Tar.TarWriter tarWriter = new System.Formats.Tar.TarWriter(archiveStream, System.Formats.Tar.TarFormat.Gnu, true);
             System.Formats.Tar.TarReader tarReader = new TarReader(archiveStream, true);
             return new TarArchive(archiveStream, tarWriter, tarReader, ZipArchiveMode.Update);
+        }
+
+        public static TarArchive OpenForReading(string archivePath)
+        {
+            System.IO.FileStream archiveStream = new FileStream(archivePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            System.Formats.Tar.TarReader tarReader = new TarReader(archiveStream, true);
+            return new TarArchive(archiveStream, null, tarReader, ZipArchiveMode.Read);
         }
 
         public void AddItem(EntryRecord entryRecord)
@@ -55,6 +62,53 @@ namespace Microsoft.PowerShell.Archive
             string entryName = entryRecord.Name.Replace(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
             //bool hasEntryInArchive = _tarReader.
             _tarWriter.WriteEntry(entryRecord.FullPath, entryName);
+        }
+
+        public void ExpandArchive(string destinationPath, bool overwrite)
+        {
+            _archiveStream.Position = 0;
+            _tarReader.Dispose();
+            _tarReader = new TarReader(_archiveStream, false);
+            var entry = _tarReader.GetNextEntry();
+            while (entry != null)
+            {
+                string normalizedEntryName = entry.Name.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar);
+                string fileDestinationPath = destinationPath + normalizedEntryName;
+                if (File.Exists(fileDestinationPath) && !overwrite)
+                {
+                    //Throw an error
+                    System.InvalidOperationException exception = new InvalidOperationException($"The file {fileDestinationPath} already exists");
+                    throw exception;
+                }
+
+                if (fileDestinationPath.EndsWith(System.IO.Path.DirectorySeparatorChar))
+                {
+                    //If the directory does not exist create it
+                    if (!System.IO.Directory.Exists(fileDestinationPath)) System.IO.Directory.CreateDirectory(fileDestinationPath);
+
+                }
+                else
+                {
+                    //Create the file
+                    entry.ExtractToFile(fileDestinationPath, overwrite);
+                }
+                entry = _tarReader.GetNextEntry();
+            }
+        }
+
+        public bool HasOneTopLevelEntries()
+        {
+            var entryNames = new List<string>();
+            var entry = _tarReader.GetNextEntry();
+            while (entry != null)
+            {
+                entryNames.Add(entry.Name);
+                entry = _tarReader.GetNextEntry();
+            }
+
+            return entryNames.GroupBy(x => x.Split(System.IO.Path.AltDirectorySeparatorChar).First())
+                       .Where(x => x.Count() > 0)
+                       .Count() == 1;
         }
 
         protected virtual void Dispose(bool disposing)

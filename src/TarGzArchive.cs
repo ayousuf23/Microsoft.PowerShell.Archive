@@ -22,7 +22,7 @@ namespace Microsoft.PowerShell.Archive
         private bool disposedValue;
         private CompressionLevel CompressionLevel;
 
-        private TarGzArchive(string destinationPath, string tempFilePath, TarArchive tarArchive, System.IO.Compression.ZipArchiveMode archiveMode)
+        private TarGzArchive(string destinationPath, string tempFilePath, TarArchive tarArchive, System.IO.Compression.ZipArchiveMode archiveMode, CompressionLevel compressionLevel)
         {
             _destinationPath = destinationPath;
             _tempFilePath = tempFilePath;
@@ -30,7 +30,7 @@ namespace Microsoft.PowerShell.Archive
             _tarArchive = tarArchive;
         }
 
-        public static TarGzArchive Create(string destinationPath)
+        public static TarGzArchive Create(string destinationPath, CompressionLevel compressionLevel)
         {
             //Get temp file 
             string tempFileName = Path.GetTempFileName();
@@ -41,10 +41,10 @@ namespace Microsoft.PowerShell.Archive
             //Make tar archive
             var tarArchive = TarArchive.Create(tempFileName);
             
-            return new TarGzArchive(destinationPath, tempFileName, tarArchive, zipArchiveMode);
+            return new TarGzArchive(destinationPath, tempFileName, tarArchive, zipArchiveMode, compressionLevel);
         }
 
-        public static TarGzArchive OpenForUpdating(string destinationPath)
+        public static TarGzArchive OpenForUpdating(string destinationPath, CompressionLevel compressionLevel)
         {
             //Get temp file 
             string tempFileName = Path.GetTempFileName();
@@ -59,6 +59,7 @@ namespace Microsoft.PowerShell.Archive
             tempFileStream.Dispose();
 
             //Delete original gzipped file
+            //Note: we should only delete the file at the end, but we are doing it here for now
             System.IO.File.Delete(destinationPath);
 
             //Archive mode
@@ -67,7 +68,24 @@ namespace Microsoft.PowerShell.Archive
             //Make tar archive
             var tarArchive = TarArchive.OpenForUpdating(tempFileName);
 
-            return new TarGzArchive(destinationPath, tempFileName, tarArchive, zipArchiveMode);
+            return new TarGzArchive(destinationPath, tempFileName, tarArchive, zipArchiveMode, compressionLevel);
+        }
+
+        public static TarGzArchive OpenForReading(string archivePath)
+        {
+            //Get temp file 
+            string tempFileName = Path.GetTempFileName();
+
+            //Decompress archive to the temp file
+            Decompress(tempFileName, archivePath);
+
+            //Archive mode
+            var zipArchiveMode = System.IO.Compression.ZipArchiveMode.Read;
+
+            //Make tar archive
+            var tarArchive = TarArchive.OpenForReading(tempFileName);
+
+            return new TarGzArchive(archivePath, tempFileName, tarArchive, zipArchiveMode, CompressionLevel.NoCompression);
         }
 
         public void AddItem(EntryRecord entryRecord)
@@ -85,17 +103,29 @@ namespace Microsoft.PowerShell.Archive
 
             //Make the temp file a gz file
             int bufferSize = 4096;
-            using System.IO.FileStream compressedFileStream = new FileStream(_destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize);
+            using System.IO.FileStream compressedFileStream = new FileStream(_destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
             using var compressor = new System.IO.Compression.GZipStream(compressedFileStream, CompressionLevel);
-            tempFileStream.CopyTo(compressor);
+            tempFileStream.CopyTo(compressor, bufferSize);
             //compressor.Flush();
         }
 
-        public void SetCompressionLevel(string? compressionLevel)
+        //Decompresses tar.gz archive to a temp file
+        public static void Decompress(string tempFilePath, string archivePath)
         {
-            if (compressionLevel == "Optimal") CompressionLevel = CompressionLevel.Optimal;
-            else if (compressionLevel == "Fastest") CompressionLevel = CompressionLevel.Fastest;
-            else CompressionLevel = CompressionLevel.NoCompression;
+            //Open a stream to the temp file
+            using System.IO.FileStream tempFileStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+            //Make the temp file a gz file
+            int bufferSize = 4096;
+            using var archiveFileStream = new System.IO.FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var compressor = new System.IO.Compression.GZipStream(archiveFileStream, CompressionMode.Decompress);
+            archiveFileStream.CopyTo(compressor, bufferSize);
+            //compressor.Flush();
+        }
+
+        public void ExpandArchive(string destinationPath, bool overwrite)
+        {
+            _tarArchive.ExpandArchive(destinationPath, overwrite);
         }
 
         protected virtual void Dispose(bool disposing)

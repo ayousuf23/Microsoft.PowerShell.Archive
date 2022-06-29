@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.ComponentModel.Design;
+using System.IO;
 using System.Management.Automation;
 
 namespace Microsoft.PowerShell.Archive
@@ -28,8 +29,7 @@ namespace Microsoft.PowerShell.Archive
 
 
         [Parameter(Mandatory = false, ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
-        [ValidateSet("Optimal", "NoCompression", "Fastest", "SmallestSize")]
-        public string? CompressionLevel { get; set; }
+        public System.IO.Compression.CompressionLevel CompressionLevel { get; set; }
 
         [Parameter(Mandatory = true, ParameterSetName = "PathWithUpdate", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
         [Parameter(Mandatory = true, ParameterSetName = "LiteralPathWithUpdate", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
@@ -124,15 +124,16 @@ namespace Microsoft.PowerShell.Archive
                 {
                     if (Format == ArchiveFormat.zip) zipArchive = ZipArchive.OpenForUpdating(DestinationPath);
                     if (Format == ArchiveFormat.tar) tarArchive = TarArchive.OpenForUpdating(DestinationPath);
-                    if (Format == ArchiveFormat.targz) tarGzArchive = TarGzArchive.OpenForUpdating(DestinationPath);
+                    if (Format == ArchiveFormat.targz) tarGzArchive = TarGzArchive.OpenForUpdating(DestinationPath, System.IO.Compression.CompressionLevel.NoCompression);
                 }
                 else
                 {
                     if (Format == ArchiveFormat.tar) tarArchive = TarArchive.Create(DestinationPath);
                     else if (Format == ArchiveFormat.zip) zipArchive = ZipArchive.Create(DestinationPath);
-                    else if (Format == ArchiveFormat.targz) tarGzArchive = TarGzArchive.Create(DestinationPath);
+                    else if (Format == ArchiveFormat.targz) tarGzArchive = TarGzArchive.Create(DestinationPath, CompressionLevel);
                 }
-                if (Format == ArchiveFormat.zip) zipArchive.SetCompressionLevel(CompressionLevel);
+                //if (Format == ArchiveFormat.zip) zipArchive.SetCompressionLevel(CompressionLevel);
+                //else if (Format == ArchiveFormat.targz) tarGzArchive.SetCompressionLevel(CompressionLevel);
 
                 ProgressRecord progressRecord = new ProgressRecord(1, "Archiving in progress", "0%");
                 WriteProgress(progressRecord);
@@ -184,16 +185,6 @@ namespace Microsoft.PowerShell.Archive
             //Check if it is a folder
             if (System.IO.Directory.Exists(path))
             {
-                //if so, append folder's file name to it
-                var directoryInfo = new DirectoryInfo(path);
-                if (Format == null)
-                {
-                    Format = ArchiveFormat.zip;
-                    WriteVerbose("Format not specified, zip chosen by default");
-                }
-                if (Format == ArchiveFormat.zip) path += directoryInfo.Name + ".zip";
-                else if (Format == ArchiveFormat.tar) path += directoryInfo.Name + ".tar";
-                else if (Format == ArchiveFormat.targz) path += directoryInfo.Name + ".tar.gz";
                 WriteVerbose("Destination path is a folder, setting archive name as directory name + file extension");
             }
 
@@ -233,7 +224,7 @@ namespace Microsoft.PowerShell.Archive
                     path += ".tar";
                     WriteVerbose("Adding .tar extension to destination path");
                 }
-                if (Format == ArchiveFormat.targz && extension != ".tar.gz")
+                if (Format == ArchiveFormat.targz && extension != ".gz")
                 {
                     path += ".tar.gz";
                     WriteVerbose("Adding .tar.gz extension to destination path");
@@ -282,6 +273,14 @@ namespace Microsoft.PowerShell.Archive
             }
 
             return path;
+        }
+
+        public System.IO.Compression.CompressionLevel GetCompressionLevel(string? compressionLevel)
+        {
+            if (compressionLevel == "Optimal") return System.IO.Compression.CompressionLevel.Optimal;
+            else if (compressionLevel == "Fastest") return System.IO.Compression.CompressionLevel.Fastest;
+            else if (compressionLevel == "SmallestSize") return System.IO.Compression.CompressionLevel.SmallestSize;
+            else return System.IO.Compression.CompressionLevel.NoCompression;
         }
     }
 }
