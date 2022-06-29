@@ -3,7 +3,7 @@ using System.Management.Automation;
 
 namespace Microsoft.PowerShell.Archive
 {
-    [Cmdlet("Compress", "Archive", SupportsShouldProcess=true)]
+    [Cmdlet("Compress", "Archive", SupportsShouldProcess = true)]
     [OutputType(typeof(System.IO.FileInfo))]
     public class CompressArchiveCommand : Microsoft.PowerShell.Commands.CoreCommandBase
     {
@@ -28,11 +28,11 @@ namespace Microsoft.PowerShell.Archive
 
 
         [Parameter(Mandatory = false, ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
-        [ValidateSet("Optimal", "NoCompression", "Fastest")]
+        [ValidateSet("Optimal", "NoCompression", "Fastest", "SmallestSize")]
         public string? CompressionLevel { get; set; }
 
-        [Parameter(Mandatory = true, ParameterSetName="PathWithUpdate", ValueFromPipeline=false, ValueFromPipelineByPropertyName=false)]
-        [Parameter(Mandatory = true, ParameterSetName="LiteralPathWithUpdate", ValueFromPipeline=false, ValueFromPipelineByPropertyName=false)]
+        [Parameter(Mandatory = true, ParameterSetName = "PathWithUpdate", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
+        [Parameter(Mandatory = true, ParameterSetName = "LiteralPathWithUpdate", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
         public SwitchParameter Update { get; set; }
 
         [Parameter(Mandatory = true, ParameterSetName = "PathWithForce", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
@@ -47,6 +47,9 @@ namespace Microsoft.PowerShell.Archive
 
         [Parameter()]
         public string? Filter { get; set; } = "*";
+
+        [Parameter()]
+        public SwitchParameter Flatten {get; set;}
 
 
         //Store source paths as they were inputted
@@ -144,7 +147,7 @@ namespace Microsoft.PowerShell.Archive
                     archivedEntries++;
                     WriteVerbose($"Archived {entry.FullPath} ({archivedEntries}/{entryRecords.Count})");
                     float percentComplete = archivedEntries / entryRecords.Count * 100;
-                    ProgressRecord progressRecord = new ProgressRecord(1, "Archiving in progress", $"{percentComplete}%");
+                    progressRecord = new ProgressRecord(1, "Archiving in progress", $"{percentComplete}%");
                     WriteProgress(progressRecord);
                 }
 

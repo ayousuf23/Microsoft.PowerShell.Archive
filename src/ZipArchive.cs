@@ -50,6 +50,15 @@ namespace Microsoft.PowerShell.Archive
             return archive;
         }
 
+        public static ZipArchive OpenForReading(string archivePath)
+        {
+            System.IO.FileStream archiveStream = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var zipArchive = new System.IO.Compression.ZipArchive(archiveStream, ZipArchiveMode.Read, true);
+
+            ZipArchive archive = new ZipArchive(archivePath, archiveStream, zipArchive, ZipArchiveMode.Read);
+            return archive;
+        }
+
         public void AddItem(EntryRecord entry)
         {
             string entryName = entry.Name.Replace(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
@@ -73,6 +82,41 @@ namespace Microsoft.PowerShell.Archive
             if (compressionLevel == "Optimal") CompressionLevel = CompressionLevel.Optimal;
             else if (compressionLevel == "Fastest") CompressionLevel = CompressionLevel.Fastest;
             else CompressionLevel = CompressionLevel.NoCompression;
+        }
+
+        public void ExpandArchive(string destinationPath, bool overwrite)
+        {
+            foreach (var entry in _zipArchive.Entries)
+            {
+                string normalizedEntryName = entry.FullName.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar);
+                string fileDestinationPath = destinationPath + normalizedEntryName;
+                if (File.Exists(fileDestinationPath) && !overwrite)
+                {
+                    //Throw an error
+                    System.InvalidOperationException exception = new InvalidOperationException($"The file {fileDestinationPath} already exists");
+                    throw exception;
+                }
+
+                if (fileDestinationPath.EndsWith(System.IO.Path.DirectorySeparatorChar))
+                {
+                    //If the directory does not exist create it
+                    if (!System.IO.Directory.Exists(fileDestinationPath)) System.IO.Directory.CreateDirectory(fileDestinationPath);
+
+                } else
+                {
+                    //Create the file
+                    entry.ExtractToFile(fileDestinationPath, overwrite);
+                }
+                
+            }
+        }
+
+        public bool HasOneTopLevelEntries()
+        {
+            var entryNames = _zipArchive.Entries.GroupBy(entry => entry.FullName).Select(entry => entry.Key).ToList();
+            return entryNames.GroupBy(x => x.Split(System.IO.Path.AltDirectorySeparatorChar).First())
+                       .Where(x => x.Count() > 0)
+                       .Count() == 1;
         }
 
         protected virtual void Dispose(bool disposing)

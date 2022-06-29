@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.PowerShell.Commands;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
@@ -127,6 +128,14 @@ namespace Microsoft.PowerShell.Archive
                 //This is a relative path not containing ~ or ..
                 return Cmdlet.SessionState.Path.CurrentFileSystemLocation.ProviderPath + System.IO.Path.DirectorySeparatorChar;
             }
+        }
+
+        public static string ResolvePath(string path, PSCmdlet cmdlet)
+        {
+            string unresolvedPath = cmdlet.GetUnresolvedProviderPathFromPSPath(path);
+
+            return unresolvedPath;
+
         }
     }
 }
