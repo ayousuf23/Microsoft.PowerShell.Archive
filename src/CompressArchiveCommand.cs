@@ -6,7 +6,7 @@ namespace Microsoft.PowerShell.Archive
 {
     [Cmdlet("Compress", "Archive", SupportsShouldProcess = true)]
     [OutputType(typeof(System.IO.FileInfo))]
-    public class CompressArchiveCommand : Microsoft.PowerShell.Commands.CoreCommandBase
+    public class CompressArchiveCommand : PSCmdlet, IDynamicParameters
     {
 
 
@@ -28,8 +28,7 @@ namespace Microsoft.PowerShell.Archive
         public string? DestinationPath { get; set; }
 
 
-        [Parameter(Mandatory = false, ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
-        public System.IO.Compression.CompressionLevel CompressionLevel { get; set; }
+        
 
         [Parameter(Mandatory = true, ParameterSetName = "PathWithUpdate", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
         [Parameter(Mandatory = true, ParameterSetName = "LiteralPathWithUpdate", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
@@ -37,7 +36,7 @@ namespace Microsoft.PowerShell.Archive
 
         [Parameter(Mandatory = true, ParameterSetName = "PathWithForce", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
         [Parameter(Mandatory = true, ParameterSetName = "LiteralPathWithForce", ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
-        public override SwitchParameter Force { get { return base.Force; } set { base.Force = value; } }
+        public SwitchParameter Force { get; set; }
 
         [Parameter()]
         public SwitchParameter PassThru { get; set; } = false;
@@ -60,6 +59,7 @@ namespace Microsoft.PowerShell.Archive
             _inputPaths = new List<string>();
         }
 
+        private CompressArchiveDynamicParameters? dynamicParameters;
 
         protected override void BeginProcessing()
         {
@@ -78,7 +78,6 @@ namespace Microsoft.PowerShell.Archive
             //Step 2: Add path/literal path to input paths
             if (ParameterSetName.StartsWith("Path")) _inputPaths.AddRange(Path);
             else _inputPaths.AddRange(LiteralPath);
-
 
             base.ProcessRecord();
         }
@@ -124,16 +123,14 @@ namespace Microsoft.PowerShell.Archive
                 {
                     if (Format == ArchiveFormat.zip) zipArchive = ZipArchive.OpenForUpdating(DestinationPath);
                     if (Format == ArchiveFormat.tar) tarArchive = TarArchive.OpenForUpdating(DestinationPath);
-                    if (Format == ArchiveFormat.targz) tarGzArchive = TarGzArchive.OpenForUpdating(DestinationPath, System.IO.Compression.CompressionLevel.NoCompression);
+                    if (Format == ArchiveFormat.targz) tarGzArchive = TarGzArchive.OpenForUpdating(DestinationPath, dynamicParameters.CompressionLevel);
                 }
                 else
                 {
                     if (Format == ArchiveFormat.tar) tarArchive = TarArchive.Create(DestinationPath);
                     else if (Format == ArchiveFormat.zip) zipArchive = ZipArchive.Create(DestinationPath);
-                    else if (Format == ArchiveFormat.targz) tarGzArchive = TarGzArchive.Create(DestinationPath, CompressionLevel);
+                    else if (Format == ArchiveFormat.targz) tarGzArchive = TarGzArchive.Create(DestinationPath, dynamicParameters.CompressionLevel);
                 }
-                //if (Format == ArchiveFormat.zip) zipArchive.SetCompressionLevel(CompressionLevel);
-                //else if (Format == ArchiveFormat.targz) tarGzArchive.SetCompressionLevel(CompressionLevel);
 
                 ProgressRecord progressRecord = new ProgressRecord(1, "Archiving in progress", "0%");
                 WriteProgress(progressRecord);
@@ -282,5 +279,21 @@ namespace Microsoft.PowerShell.Archive
             else if (compressionLevel == "SmallestSize") return System.IO.Compression.CompressionLevel.SmallestSize;
             else return System.IO.Compression.CompressionLevel.NoCompression;
         }
+
+        public object? GetDynamicParameters()
+        {
+            if (Format == ArchiveFormat.zip || Format == ArchiveFormat.targz)
+            {
+                dynamicParameters = new CompressArchiveDynamicParameters();
+                return dynamicParameters;
+            }
+            return null;
+        }
+    }
+
+    public class CompressArchiveDynamicParameters
+    {
+        [Parameter(Mandatory = false, ValueFromPipeline = false, ValueFromPipelineByPropertyName = false)]
+        public System.IO.Compression.CompressionLevel CompressionLevel { get; set; }
     }
 }

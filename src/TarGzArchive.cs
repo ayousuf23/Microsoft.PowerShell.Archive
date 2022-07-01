@@ -20,6 +20,7 @@ namespace Microsoft.PowerShell.Archive
         private System.IO.Compression.ZipArchiveMode _archiveMode;
         
         private bool disposedValue;
+
         private CompressionLevel CompressionLevel;
 
         private TarGzArchive(string destinationPath, string tempFilePath, TarArchive tarArchive, System.IO.Compression.ZipArchiveMode archiveMode, CompressionLevel compressionLevel)
@@ -28,6 +29,7 @@ namespace Microsoft.PowerShell.Archive
             _tempFilePath = tempFilePath;
             _archiveMode = archiveMode;
             _tarArchive = tarArchive;
+            CompressionLevel = compressionLevel;
         }
 
         public static TarGzArchive Create(string destinationPath, CompressionLevel compressionLevel)
@@ -119,13 +121,17 @@ namespace Microsoft.PowerShell.Archive
             int bufferSize = 4096;
             using var archiveFileStream = new System.IO.FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var compressor = new System.IO.Compression.GZipStream(archiveFileStream, CompressionMode.Decompress);
-            archiveFileStream.CopyTo(compressor, bufferSize);
-            //compressor.Flush();
+            compressor.CopyTo(tempFileStream, bufferSize);
         }
 
-        public void ExpandArchive(string destinationPath, bool overwrite)
+        public void ExpandArchive(string destinationPath, bool overwrite, string filter)
         {
-            _tarArchive.ExpandArchive(destinationPath, overwrite);
+            _tarArchive.ExpandArchive(destinationPath, overwrite, filter);
+        }
+
+        public bool HasOneTopLevelEntries()
+        {
+            return _tarArchive.HasOneTopLevelEntries();
         }
 
         protected virtual void Dispose(bool disposing)
@@ -135,7 +141,7 @@ namespace Microsoft.PowerShell.Archive
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects)
-                    
+                    _tarArchive.Dispose();
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override finalizer

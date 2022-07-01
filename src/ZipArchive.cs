@@ -104,6 +104,10 @@ namespace Microsoft.PowerShell.Archive
 
                 } else
                 {
+                    //Check if parent directory exists
+                    var parentDirectory = System.IO.Directory.GetParent(fileDestinationPath);
+                    if (!parentDirectory.Exists) parentDirectory.Create();
+
                     //Create the file
                     entry.ExtractToFile(fileDestinationPath, overwrite);
                 }

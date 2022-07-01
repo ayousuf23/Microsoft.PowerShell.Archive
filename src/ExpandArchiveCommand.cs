@@ -87,7 +87,7 @@ namespace Microsoft.PowerShell.Archive
             bool has1TLEntry = false;
             if (Format == ArchiveFormat.zip) has1TLEntry = zipArchive.HasOneTopLevelEntries();
             else if (Format == ArchiveFormat.tar) has1TLEntry = tarArchive.HasOneTopLevelEntries();
-            //else if (Format == ArchiveFormat.targz) has1TLEntry = tarGzArchive.HasOneTopLevelEntries();
+            else if (Format == ArchiveFormat.targz) has1TLEntry = tarGzArchive.HasOneTopLevelEntries();
 
             if (has1TLEntry && DestinationPath == null)
             {
@@ -102,11 +102,8 @@ namespace Microsoft.PowerShell.Archive
             if (ShouldProcess(archivePath, "Expand"))
             {
                 if (Format == ArchiveFormat.zip) zipArchive.ExpandArchive(DestinationPath, Force.IsPresent);
-                else if (Format == ArchiveFormat.tar) tarArchive.ExpandArchive(DestinationPath, Force.IsPresent);
-                //else if (Format == ArchiveFormat.targz) tarGzArchive.ExpandArchive();
-
-
-
+                else if (Format == ArchiveFormat.tar) tarArchive.ExpandArchive(DestinationPath, Force.IsPresent, Filter);
+                else if (Format == ArchiveFormat.targz) tarGzArchive.ExpandArchive(DestinationPath, Force.IsPresent, Filter);
             }
 
             if (Format == ArchiveFormat.zip) zipArchive.Dispose();

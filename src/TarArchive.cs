@@ -64,8 +64,9 @@ namespace Microsoft.PowerShell.Archive
             _tarWriter.WriteEntry(entryRecord.FullPath, entryName);
         }
 
-        public void ExpandArchive(string destinationPath, bool overwrite)
+        public void ExpandArchive(string destinationPath, bool overwrite, string filter)
         {
+            System.Management.Automation.WildcardPattern wildcardPattern = new System.Management.Automation.WildcardPattern(filter);
             _archiveStream.Position = 0;
             _tarReader.Dispose();
             _tarReader = new TarReader(_archiveStream, false);
@@ -73,25 +74,36 @@ namespace Microsoft.PowerShell.Archive
             while (entry != null)
             {
                 string normalizedEntryName = entry.Name.Replace(System.IO.Path.AltDirectorySeparatorChar, System.IO.Path.DirectorySeparatorChar);
+                string filename = System.IO.Path.GetFileName(normalizedEntryName);
                 string fileDestinationPath = destinationPath + normalizedEntryName;
-                if (File.Exists(fileDestinationPath) && !overwrite)
+
+                if (wildcardPattern.IsMatch(filename))
                 {
-                    //Throw an error
-                    System.InvalidOperationException exception = new InvalidOperationException($"The file {fileDestinationPath} already exists");
-                    throw exception;
+
+                    if (File.Exists(fileDestinationPath) && !overwrite)
+                    {
+                        //Throw an error
+                        System.InvalidOperationException exception = new InvalidOperationException($"The file {fileDestinationPath} already exists");
+                        throw exception;
+                    }
+
+                    if (fileDestinationPath.EndsWith(System.IO.Path.DirectorySeparatorChar))
+                    {
+                        //If the directory does not exist create it
+                        if (!System.IO.Directory.Exists(fileDestinationPath)) System.IO.Directory.CreateDirectory(fileDestinationPath);
+
+                    }
+                    else
+                    {
+                        //Check if parent directory exists
+                        var parentDirectory = System.IO.Directory.GetParent(fileDestinationPath);
+                        if (!parentDirectory.Exists) parentDirectory.Create();
+
+                        //Create the file
+                        entry.ExtractToFile(fileDestinationPath, overwrite);
+                    }
                 }
 
-                if (fileDestinationPath.EndsWith(System.IO.Path.DirectorySeparatorChar))
-                {
-                    //If the directory does not exist create it
-                    if (!System.IO.Directory.Exists(fileDestinationPath)) System.IO.Directory.CreateDirectory(fileDestinationPath);
-
-                }
-                else
-                {
-                    //Create the file
-                    entry.ExtractToFile(fileDestinationPath, overwrite);
-                }
                 entry = _tarReader.GetNextEntry();
             }
         }
