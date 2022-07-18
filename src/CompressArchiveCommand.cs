@@ -50,10 +50,6 @@ namespace Microsoft.PowerShell.Archive
         [Parameter()]
         public SwitchParameter Flatten {get; set;}
 
-        [Parameter()]
-        [ValidateSet()]
-        public string? Test { get; set; }
-
         //Store source paths as they were inputted
         private List<string> _inputPaths;
 

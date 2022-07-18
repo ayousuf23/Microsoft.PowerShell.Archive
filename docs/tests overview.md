@@ -8,7 +8,7 @@
 
 - Validate errors from invalid `-Path`
 
-- **[NEEDED]** Validate errors from invalid `-LiteralPath`        
+- **[NEEDED]** Validate errors from invalid `-LiteralPath`
 
 -  Validate error when archive file already exists and `-Update` or `-Force` is not specified
 
@@ -77,7 +77,7 @@
 
 - Validate `-Update` does not throw an error if the archive already exists
 
-- Validate `-Update` by adding a new file to an existing archive 
+- Validate `-Update` by adding a new file to an existing archive
 
 - Validate `-Update` modifies a pre-existing file in an archive if a file with the same path is specified as a source file
 
@@ -99,18 +99,19 @@ Notes:
 ### `-Force` parameter
 
 - **[NEEDED]** Validate `-Force` recreates archive when it already exists
-    - Ensure all previous contents of the archive are not retained unless passed 
+    - Ensure all previous contents of the archive are not retained unless passed
 
 ### `-WhatIf` parameter
 
-- **[NEEDED]** Validate destination file is not deleted when `-Force` is specified in addition to `-WhatIf` 
+- **[NEEDED]** Validate destination file is not deleted when `-Force` is specified in addition to `-WhatIf`
 
 ### `-Confirm` parameter
 
 ### File extension
 
-- Validate if `.zip` extension is not supplied in `DestinationPath` then it is appended
+- Validate if `.zip` extension is not supplied in `DestinationPath`, a warning is reported
     - Note: This does not necessarily occur if the file has another extension
+
 - Validate a zip archive can be created with an extension other than `.zip`
 
 ### File permissions, locked files, hidden files, symbolic links, etc.
@@ -179,9 +180,13 @@ Notes:
 
 ### Large file tests
 
+- **[NEEDED]** Validate a zip archive >4GB can be created
+
+- **[NEEDED]** Validate a zip archive containing files >4GB can be created
+
 ### Compatability with other archive software tests
 
-### Archive formats and `-Format` parameter 
+### Archive formats and `-Format` parameter
 
 - **[NEEDED]** Validate error when an invalid archive format is supplied
 
@@ -192,7 +197,6 @@ Notes:
 ### Abrupt Command Stop tests
 
 - **[NEEDED]** Validate that clean up is performed when the command is stopped abruptly
-
 
 ## Expand-Archive Tests
 
@@ -219,8 +223,6 @@ Notes:
 - Invoke Expand-Archive with relative path in LiteralPath parameter and -Force parameter (955)
 
 - Invoke Expand-Archive with non-existing relative directory in DestinationPath parameter and -Force parameter (972)
-
-
 
 #### Special and Wildcard Characters
 
@@ -319,25 +321,6 @@ Notes:
 
 - **[NEEDED]** Validate that clean up is performed when the command is stopped abruptly
 
-
-
 ## Module
 
 - Validate module can be imported when current language is not en-US (1247)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
