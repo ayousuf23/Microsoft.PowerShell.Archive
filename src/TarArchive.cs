@@ -32,20 +32,20 @@ namespace Microsoft.PowerShell.Archive
         public static TarArchive Create(string destinationPath)
         {
             System.IO.FileStream archiveStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
-            System.Formats.Tar.TarWriter tarWriter = new System.Formats.Tar.TarWriter(archiveStream, System.Formats.Tar.TarFormat.Gnu, true);
+            System.Formats.Tar.TarWriter tarWriter = new System.Formats.Tar.TarWriter(archiveStream, System.Formats.Tar.TarEntryFormat.Gnu, true);
             return new TarArchive(archiveStream, tarWriter, null, ZipArchiveMode.Create);
         }
 
         public static TarArchive Create(System.IO.FileStream archiveStream)
         {
-            System.Formats.Tar.TarWriter tarWriter = new System.Formats.Tar.TarWriter(archiveStream, System.Formats.Tar.TarFormat.Gnu, false);
+            System.Formats.Tar.TarWriter tarWriter = new System.Formats.Tar.TarWriter(archiveStream, System.Formats.Tar.TarEntryFormat.Gnu, false);
             return new TarArchive(archiveStream, tarWriter, null, ZipArchiveMode.Create);
         }
 
         public static TarArchive OpenForUpdating(string destinationPath)
         {
             System.IO.FileStream archiveStream = new FileStream(destinationPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-            System.Formats.Tar.TarWriter tarWriter = new System.Formats.Tar.TarWriter(archiveStream, System.Formats.Tar.TarFormat.Gnu, true);
+            System.Formats.Tar.TarWriter tarWriter = new System.Formats.Tar.TarWriter(archiveStream, System.Formats.Tar.TarEntryFormat.Gnu, true);
             System.Formats.Tar.TarReader tarReader = new TarReader(archiveStream, true);
             return new TarArchive(archiveStream, tarWriter, tarReader, ZipArchiveMode.Update);
         }
