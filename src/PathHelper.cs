@@ -1,6 +1,7 @@
 ﻿using Microsoft.PowerShell.Archive.Localized;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.IO;
 using System.Linq;
 using System.Management.Automation;
@@ -338,23 +339,91 @@ namespace Microsoft.PowerShell.Archive
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        internal System.IO.FileSystemInfo ResolveToSingleFullyQualifiedPath(string path)
+        internal System.IO.FileSystemInfo ResolveToSingleFullyQualifiedPath(string path, bool hasWildcards)
         {
-            // Currently, all this function does is return the literal fully qualified path of a path
-
-            // First, get non-literal path
-            string fullyQualifiedPath = _cmdlet.SessionState.Path.GetUnresolvedProviderPathFromPSPath(path, out var providerInfo, out var psDriveInfo);
-
-            // If the path is not from the filesystem, throw an error
-            if (providerInfo.Name != FileSystemProviderName)
+            string? fullyQualifiedPath = null;
+            ErrorCode? errorCode = null;
+            ProviderInfo providerInfo;
+            Exception? exception = null;
+            try
             {
-                var errorRecord = ErrorMessages.GetErrorRecord(errorCode: ErrorCode.InvalidPath, errorItem: path);
+                if (hasWildcards)
+                {
+                    var resolvedPaths = _cmdlet.SessionState.Path.GetResolvedProviderPathFromPSPath(path: path, provider: out providerInfo);
+                    if (resolvedPaths.Count == 1)
+                    {
+                        fullyQualifiedPath = resolvedPaths[0];
+                    }
+                    // If the path resolved to multiple paths, set the errorCode so a terminating error can be thrown
+                    else if (resolvedPaths.Count > 1)
+                    {
+                        errorCode = ErrorCode.PathResolvedToMultiplePaths;
+                    }
+                    // If the path did not resolve to any path, set the errorCode so a terminating error can be thrown
+                    else
+                    {
+                        errorCode = ErrorCode.PathNotFound;
+                    }
+                }
+                else
+                {
+                    fullyQualifiedPath = _cmdlet.SessionState.Path.GetUnresolvedProviderPathFromPSPath(path, out providerInfo, out var psDriveInfo);
+                }
+
+                if (providerInfo.Name != FileSystemProviderName)
+                {
+                    errorCode = ErrorCode.InvalidPath;
+                }
+            }
+            catch (System.Management.Automation.ProviderNotFoundException providerNotFoundException)
+            {
+                exception = providerNotFoundException;
+            }
+            catch (System.Management.Automation.DriveNotFoundException driveNotFoundException)
+            {
+                exception = driveNotFoundException;
+            }
+            catch (System.Management.Automation.ProviderInvocationException providerInvocationException)
+            {
+                exception = providerInvocationException;
+            }
+            catch (System.Management.Automation.PSNotSupportedException notSupportedException)
+            {
+                exception = notSupportedException;
+            }
+            catch (System.Management.Automation.PSInvalidOperationException invalidOperationException)
+            {
+                exception = invalidOperationException;
+            }
+            // Throw a terminating error if the path could not be found
+            catch (System.Management.Automation.ItemNotFoundException notFoundException)
+            {
+                var errorRecord = new ErrorRecord(exception: notFoundException, errorId: ErrorCode.PathNotFound.ToString(), errorCategory: ErrorCategory.InvalidArgument,
+                    targetObject: path);
                 _cmdlet.ThrowTerminatingError(errorRecord);
             }
 
-            // Return filesystem info
+            // If an exception was encountered, throw a termination error
+            if (exception != null)
+            {
+                ErrorRecord errorRecord = new ErrorRecord(exception, errorId: ErrorCode.InvalidPath.ToString(), errorCategory: ErrorCategory.InvalidArgument, targetObject: path);
+                _cmdlet.ThrowTerminatingError(errorRecord);
+            }
 
+            if (fullyQualifiedPath == null)
+            {
+                errorCode = ErrorCode.PathNotFound;
+            }
+
+            // If an error was encountered, throw a terminating error
+            if (errorCode != null)
+            {
+                ErrorRecord errorRecord = ErrorMessages.GetErrorRecord(errorCode: errorCode.Value, errorItem: path);
+                _cmdlet.ThrowTerminatingError(errorRecord);
+            }
+
+            // Get a FileSystemInfo object for the fullyQualifiedPath
+            // At this point, fully qualified path cannot be null
             return GetFilesystemInfoForPath(fullyQualifiedPath);
         }
 

@@ -79,24 +79,6 @@ namespace Microsoft.PowerShell.Archive.Localized {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The destination path {0} is a directory..
-        /// </summary>
-        internal static string ArchiveExistsAsDirectoryMessage {
-            get {
-                return ResourceManager.GetString("ArchiveExistsAsDirectoryMessage", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to The destination path {0} already exists..
-        /// </summary>
-        internal static string ArchiveExistsMessage {
-            get {
-                return ResourceManager.GetString("ArchiveExistsMessage", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to The archive {0} does not have an extension or an extension that matches the chosen archive format..
         /// </summary>
         internal static string ArchiveExtensionDoesNotMatchArchiveFormatWarning {
@@ -151,6 +133,24 @@ namespace Microsoft.PowerShell.Archive.Localized {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The destination path {0} is a directory..
+        /// </summary>
+        internal static string DestinationExistsAsDirectoryMessage {
+            get {
+                return ResourceManager.GetString("DestinationExistsAsDirectoryMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The destination path {0} already exists..
+        /// </summary>
+        internal static string DestinationExistsMessage {
+            get {
+                return ResourceManager.GetString("DestinationExistsMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The path(s) {0} have been specified more than once..
         /// </summary>
         internal static string DuplicatePathsMessage {
@@ -201,6 +201,15 @@ namespace Microsoft.PowerShell.Archive.Localized {
         internal static string PathNotFoundMessage {
             get {
                 return ResourceManager.GetString("PathNotFoundMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The path {0} refers to multiple paths, but only one was expected. Perhaps this occured because multiple paths matched the wildcard (if applicable)..
+        /// </summary>
+        internal static string PathResolvedToMultiplePathsMessage {
+            get {
+                return ResourceManager.GetString("PathResolvedToMultiplePathsMessage", resourceCulture);
             }
         }
         

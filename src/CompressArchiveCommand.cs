@@ -11,20 +11,14 @@ namespace Microsoft.PowerShell.Archive
 {
     [Cmdlet("Compress", "Archive", SupportsShouldProcess = true)]
     [OutputType(typeof(System.IO.FileInfo))]
-    public class CompressArchiveCommand : PSCmdlet
+    public class CompressArchiveCommand : ArchiveCommandBase
     {
 
         // TODO: Add filter parameter
-        // TODO: Add format parameter
         // TODO: Add flatten parameter
         // TODO: Add comments to methods
 
-        // TODO: Add warnings for archive file extension
         // TODO: Add tar support
-
-        // TODO: Add comments to ArchiveEntry and for adding filesystem entry to zip
-
-        // TODO: Add error messages for each error code
 
         /// <summary>
         /// The Path parameter - specifies paths of files or directories from the filesystem to add to or update in the archive.
@@ -83,14 +77,14 @@ namespace Microsoft.PowerShell.Archive
 
         protected override void BeginProcessing()
         {
-            _destinationPathInfo = _pathHelper.ResolveToSingleFullyQualifiedPath(DestinationPath);
+            _destinationPathInfo = _pathHelper.ResolveToSingleFullyQualifiedPath(DestinationPath, hasWildcards: false);
             DestinationPath = _destinationPathInfo.FullName;
 
             // Validate
             ValidateDestinationPath();
 
             // Determine archive format based on DestinationPath
-            DetermineArchiveFormat();
+            Format = DetermineArchiveFormat(destinationPath: _destinationPathInfo.FullName, archiveFormat: Format);
         }
 
         protected override void ProcessRecord()
@@ -159,7 +153,7 @@ namespace Microsoft.PowerShell.Archive
                     _didCreateNewArchive = archiveMode == ArchiveMode.Update;
                 }
 
-                // TODO: Update progress
+                
                 long numberOfAdditions = archiveAddtions.Count;
                 long numberOfAddedItems = 0;
                 var progressRecord = new ProgressRecord(activityId: 1, activity: "Compress-Archive", "0% complete");
@@ -221,7 +215,6 @@ namespace Microsoft.PowerShell.Archive
         /// </summary>
         private void ValidateDestinationPath()
         {
-            // TODO: Add tests cases for conditions below
             ErrorCode? errorCode = null;
 
             // In this case, DestinationPath does not exist
@@ -239,12 +232,12 @@ namespace Microsoft.PowerShell.Archive
                 // Throw an error if DestinationPath exists and the cmdlet is not in Update mode or Overwrite is not specified 
                 if (WriteMode == WriteMode.Create)
                 {
-                    errorCode = ErrorCode.ArchiveExistsAsDirectory;
+                    errorCode = ErrorCode.DestinationExistsAsDirectory;
                 }
                 // Throw an error if the DestinationPath is a directory and the cmdlet is in Update mode
                 else if (WriteMode == WriteMode.Update)
                 {
-                    errorCode = ErrorCode.ArchiveExistsAsDirectory;
+                    errorCode = ErrorCode.DestinationExistsAsDirectory;
                 }
                 // Throw an error if the DestinationPath is the current working directory and the cmdlet is in Overwrite mode
                 else if (WriteMode == WriteMode.Overwrite && _destinationPathInfo.FullName == SessionState.Path.CurrentFileSystemLocation.ProviderPath)
@@ -263,7 +256,7 @@ namespace Microsoft.PowerShell.Archive
                 // Throw an error if DestinationPath exists and the cmdlet is not in Update mode or Overwrite is not specified 
                 if (WriteMode == WriteMode.Create)
                 {
-                    errorCode = ErrorCode.ArchiveExists;
+                    errorCode = ErrorCode.DestinationExists;
                 }
                 // Throw an error if the cmdlet is in Update mode but the archive is read only
                 else if (WriteMode == WriteMode.Update && _destinationPathInfo.Attributes.HasFlag(FileAttributes.ReadOnly))
@@ -307,39 +300,6 @@ namespace Microsoft.PowerShell.Archive
                 var errorRecord = new ErrorRecord(unauthorizedAccessException, errorId: ErrorCode.InsufficientPermissionsToAccessPath.ToString(),
                     errorCategory: ErrorCategory.PermissionDenied, targetObject: _destinationPathInfo.FullName);
                 ThrowTerminatingError(errorRecord);
-            }
-        }
-
-        private void DetermineArchiveFormat()
-        {
-            // Check if cmdlet is able to determine the format of the archive based on the extension of DestinationPath
-            bool ableToDetermineArchiveFormat = ArchiveFactory.TryGetArchiveFormatForPath(path: _destinationPathInfo.FullName, archiveFormat: out var archiveFormat);
-            // If the user did not specify which archive format to use, try to determine it automatically
-            if (Format is null)
-            {
-                if (ableToDetermineArchiveFormat)
-                {
-                    Format = archiveFormat;
-                }
-                else
-                {
-                    // If the archive format could not be determined, use zip by default and emit a warning
-                    var warningMsg = String.Format(Messages.ArchiveFormatCouldNotBeDeterminedWarning, _destinationPathInfo.FullName);
-                    WriteWarning(warningMsg);
-                    Format = ArchiveFormat.zip;
-                }
-                // Write a verbose message saying that Format is not specified and a format was determined automatically
-                string verboseMessage = String.Format(Messages.ArchiveFormatDeterminedVerboseMessage, Format);
-                WriteVerbose(verboseMessage);
-            }
-            // If the user did specify which archive format to use, emit a warning if DestinationPath does not match the chosen archive format
-            else
-            {
-                if (archiveFormat is null || archiveFormat.Value != Format.Value)
-                {
-                    var warningMsg = String.Format(Messages.ArchiveExtensionDoesNotMatchArchiveFormatWarning, _destinationPathInfo.FullName);
-                    WriteWarning(warningMsg);
-                }
             }
         }
     }
