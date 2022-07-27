@@ -375,9 +375,12 @@
             $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)Sample-1.txt
             $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt
             $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)ChildDir-2$($DS)Sample-3.txt
+
+            # Create a zero-byte file
+            New-Item $TestDrive$($DS)EmptyFile -Type File | Out-Null
         }
 
-        It "Validate that a single file can be compressed" {
+        It "Compresses a single file" {
             $sourcePath = "$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt"
             $destinationPath = "$TestDrive$($DS)archive1.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
@@ -385,7 +388,16 @@
             Test-ZipArchive $destinationPath @('Sample-2.txt')
         }
 
-        It "Validate that an empty folder can be compressed" {
+        It "Compresses a non-empty directory" {
+            $sourcePath =  "$TestDrive$($DS)SourceDir$($DS)ChildDir-1"
+            $destinationPath = "$TestDrive$($DS)archive4.zip"
+            
+            Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
+            $destinationPath | Should -Exist
+            Test-ZipArchive $destinationPath @('ChildDir-1/', 'ChildDir-1/Sample-2.txt')
+        }
+
+        It "Compresses an empty directory" {
             $sourcePath = "$TestDrive$($DS)EmptyDir"
             $destinationPath = "$TestDrive$($DS)archive2.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
@@ -393,13 +405,72 @@
             Test-ZipArchive $destinationPath @('EmptyDir/')
         }
 
+        It "Compresses multiple files" {
+            $sourcePath = @("$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt")
+            $destinationPath = "$TestDrive$($DS)archive2.zip"
+            Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
+            $destinationPath | Should -Exist
+            Test-ZipArchive $destinationPath @('Sample-1.txt', 'Sample-2.txt')
+        }
+
+        It "Compress multiple files and a single empty-directory" {
+            $sourcePath = @("$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt", 
+            "$TestDrive$($DS)SourceDir$($DS)ChildEmptyDir")
+            
+            $destinationPath = "$TestDrive$($DS)archive3.zip"
+            Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
+            $destinationPath | Should -Exist
+            Test-ZipArchive $destinationPath @('Sample-1.txt', 'Sample-2.txt', 'EmptyDir/')
+        }
+
+        It "Compresses multiple files and a single non-empty directory" {
+            $sourcePath = @("$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt", 
+            "$TestDrive$($DS)SourceDir$($DS)ChildDir-1")
+            
+            $destinationPath = "$TestDrive$($DS)archive3.zip"
+            Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
+            $destinationPath | Should -Exist
+            Test-ZipArchive $destinationPath @('Sample-1.txt', 'Sample-2.txt', 'ChildDir-1/', 'ChildDir-1/Sample-2.txt')
+        }
+
+        It "Compresses multiple files and non-empty directories" {
+            $sourcePath = @("$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt", 
+            "$TestDrive$($DS)SourceDir$($DS)ChildDir-1", "$TestDrive$($DS)SourceDir$($DS)ChildDir-2")
+            
+            $destinationPath = "$TestDrive$($DS)archive3.zip"
+            Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
+            $destinationPath | Should -Exist
+            Test-ZipArchive $destinationPath @('Sample-1.txt', 'Sample-2.txt', 'ChildDir-1/', 'ChildDir-2/', 
+            'ChildDir-1/Sample-2.txt', 'ChildDir-2/Sample-3.txt')
+        }
+
+        It "Compresses multiple files, non-empty directories, and an empty directory" {
+            $sourcePath = @("$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt", 
+            "$TestDrive$($DS)SourceDir$($DS)ChildDir-1", "$TestDrive$($DS)SourceDir$($DS)ChildDir-2", "$TestDrive$($DS)SourceDir$($DS)ChildEmptyDir")
+            
+            $destinationPath = "$TestDrive$($DS)archive3.zip"
+            Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
+            $destinationPath | Should -Exist
+            Test-ZipArchive $destinationPath @('Sample-1.txt', 'Sample-2.txt', 'ChildDir-1/', 'ChildDir-2/', 
+            'ChildDir-1/Sample-2.txt', 'ChildDir-2/Sample-3.txt', "EmptyDir/")
+        }
+
         It "Validate a folder containing files, non-empty folders, and empty folders can be compressed" {
             $sourcePath = "$TestDrive$($DS)SourceDir"
             $destinationPath = "$TestDrive$($DS)archive3.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
             $destinationPath | Should -Exist
-            $contents = Get-Descendants -Path $sourcePath
-            $contents += "SourceDir/"
+            $contents = @('SourceDir/', 'SourceDir/ChildDir-1/', 'SourceDir/ChildDir-2/', 'SourceDir/ChildEmptyDir/', 'SourceDir/Sample-1.txt', 
+            'SourceDir/ChildDir-1/Sample-2.txt', 'SourceDir/ChildDir-2/Sample-3.txt')
+            Test-ZipArchive $destinationPath $contents
+        }
+
+        It "Compresses a zero-byte file" {
+            $sourcePath = "$TestDrive$($DS)EmptyFile"
+            $destinationPath = "$TestDrive$($DS)archive3.zip"
+            Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
+            $destinationPath | Should -Exist
+            $contents = @('EmptyFile')
             Test-ZipArchive $destinationPath $contents
         }
     }
@@ -628,11 +699,13 @@
     Context "Special and Wildcard Characters Tests" {
         BeforeAll {
             New-Item $TestDrive$($DS)SourceDir -Type Directory | Out-Null
+
+            New-Item -LiteralPath "$TestDrive$($DS)Source[]Dir" -Type Directory | Out-Null
     
             $content = "Some Data"
             $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)Sample-1.txt
+            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)file1[].txt
         }
-
 
         It "Accepts DestinationPath parameter with wildcard characters that resolves to one path" {
             $sourcePath = "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt"
@@ -650,6 +723,35 @@
             Test-Path -LiteralPath $destinationPath | Should -Be $true
             Test-ZipArchive $destinationPath @("SourceDir/", "SourceDir/Sample-1.txt")
             Remove-Item -LiteralPath $destinationPath
+        }
+
+        It "Accepts LiteralPath parameter for a directory with special characters in the directory name"  -skip:(($PSVersionTable.psversion.Major -lt 5) -and ($PSVersionTable.psversion.Minor -lt 0)) {
+            $sourcePath = "$TestDrive$($DS)Source[]Dir"
+            "Some Random Content" | Out-File -LiteralPath "$sourcePath$($DS)Sample[]File.txt"
+            $destinationPath = "$TestDrive$($DS)archive1.zip"
+            try
+            {
+                Compress-Archive -LiteralPath $sourcePath -DestinationPath $destinationPath
+                $destinationPath | Should -Exist
+            }
+            finally
+            {
+                Remove-Item -LiteralPath $sourcePath -Force -Recurse
+            }
+        }
+
+        It "Accepts LiteralPath parameter for a file with wildcards in the filename" {
+            $sourcePath = "$TestDrive$($DS)SourceDir($DS)file1[].txt"
+            $destinationPath = "$TestDrive$($DS)archive1.zip"
+            try
+            {
+                Compress-Archive -LiteralPath $sourcePath -DestinationPath $destinationPath
+                $destinationPath | Should -Exist
+            }
+            finally
+            {
+                Remove-Item -LiteralPath $sourcePath -Force -Recurse
+            }
         }
     }
 }
