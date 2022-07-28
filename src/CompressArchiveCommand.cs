@@ -247,7 +247,7 @@ namespace Microsoft.PowerShell.Archive
                 // Throw an error if the DestinationPath is a directory with at least item and the cmdlet is in Overwrite mode
                 else if (WriteMode == WriteMode.Overwrite && (_destinationPathInfo as System.IO.DirectoryInfo).GetFileSystemInfos().Length > 0)
                 {
-                    errorCode = ErrorCode.ArchiveIsNonEmptyDirectory;
+                    errorCode = ErrorCode.DestinationIsNonEmptyDirectory;
                 }
             }
             // If DestinationPath is an existing file

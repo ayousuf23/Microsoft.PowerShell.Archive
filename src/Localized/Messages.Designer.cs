@@ -106,15 +106,6 @@ namespace Microsoft.PowerShell.Archive.Localized {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The archive {0} cannot be overwritten because it is a non-empty directory..
-        /// </summary>
-        internal static string ArchiveIsNonEmptyDirectory {
-            get {
-                return ResourceManager.GetString("ArchiveIsNonEmptyDirectory", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to The archive at {0} is read-only..
         /// </summary>
         internal static string ArchiveIsReadOnlyMessage {
@@ -147,6 +138,15 @@ namespace Microsoft.PowerShell.Archive.Localized {
         internal static string DestinationExistsMessage {
             get {
                 return ResourceManager.GetString("DestinationExistsMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The destination {0} cannot be overwritten because it is a non-empty directory..
+        /// </summary>
+        internal static string DestinationIsNonEmptyDirectory {
+            get {
+                return ResourceManager.GetString("DestinationIsNonEmptyDirectory", resourceCulture);
             }
         }
         

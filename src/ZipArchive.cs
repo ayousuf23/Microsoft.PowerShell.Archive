@@ -21,6 +21,8 @@ namespace Microsoft.PowerShell.Archive
 
         private const char ZipArchiveDirectoryPathTerminator = '/';
 
+        private int _entryIndex;
+
         ArchiveMode IArchive.Mode => _mode;
 
         string IArchive.Path => _archivePath;
@@ -33,6 +35,7 @@ namespace Microsoft.PowerShell.Archive
             _archiveStream = archiveStream;
             _zipArchive = new System.IO.Compression.ZipArchive(stream: archiveStream, mode: ConvertToZipArchiveMode(_mode), leaveOpen: true);
             _compressionLevel = compressionLevel;
+            _entryIndex = -1;
         }
 
         // If a file is added to the archive when it already contains a folder with the same name,
@@ -60,9 +63,9 @@ namespace Microsoft.PowerShell.Archive
                 if (entryInArchive == null)
                 {
                     // Ensure addition.entryName has '/' at the end
-                    if (!addition.EntryName.EndsWith(ZipArchiveDirectoryPathTerminator))
+                    if (!entryName.EndsWith(ZipArchiveDirectoryPathTerminator))
                     {
-                        addition.EntryName += ZipArchiveDirectoryPathTerminator;
+                        entryName += ZipArchiveDirectoryPathTerminator;
                     }
                     _zipArchive.CreateEntry(entryName);
                 }
@@ -82,6 +85,26 @@ namespace Microsoft.PowerShell.Archive
         string[] IArchive.GetEntries()
         {
             throw new NotImplementedException();
+        }
+
+        IEntry? IArchive.GetNextEntry()
+        {
+            if (_entryIndex < 0 || _entryIndex >= _zipArchive.Entries.Count)
+            {
+                _entryIndex = 0;
+            }
+
+            // If there are no entries, return null
+            if (_zipArchive.Entries.Count == 0)
+            {
+                return null;
+            }
+
+            // Create an ZipArchive.ZipArchiveEntry object
+            var nextEntry = _zipArchive.Entries[_entryIndex];
+            _entryIndex++;
+
+            return new ZipArchiveEntry(nextEntry);
         }
 
         void IArchive.Expand(string destinationPath)
@@ -119,6 +142,25 @@ namespace Microsoft.PowerShell.Archive
             // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
+        }
+
+        internal class ZipArchiveEntry : IEntry
+        {
+            // Underlying object is System.IO.Compression.ZipArchiveEntry
+
+            private System.IO.Compression.ZipArchiveEntry _entry;
+
+            string IEntry.Name => _entry.FullName;
+
+            void IEntry.ExpandTo(string destinationPath)
+            {
+                _entry.ExtractToFile(destinationPath);
+            }
+
+            internal ZipArchiveEntry(System.IO.Compression.ZipArchiveEntry entry)
+            {
+                _entry = entry;
+            }
         }
     }
 }
