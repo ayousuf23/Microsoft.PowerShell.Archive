@@ -166,7 +166,7 @@ namespace Microsoft.PowerShell.Archive
                     _didCreateNewArchive = archiveMode == ArchiveMode.Update;
                 }
                 
-                long numberOfAdditions = archiveAddtions.Count;
+                long numberOfAdditions = archiveAdditions.Count;
                 long numberOfAddedItems = 0;
                 var progressRecord = new ProgressRecord(activityId: 1, activity: "Compress-Archive", "0% complete");
                 WriteProgress(progressRecord);

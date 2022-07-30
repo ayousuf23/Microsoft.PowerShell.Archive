@@ -613,7 +613,7 @@
             }
             catch
             {
-                $_.FullyQualifiedErrorId | Should -Be "ArchiveIsNonEmptyDirectory,Microsoft.PowerShell.Archive.CompressArchiveCommand"
+                $_.FullyQualifiedErrorId | Should -Be "DestinationIsNonEmptyDirectory,Microsoft.PowerShell.Archive.CompressArchiveCommand"
             }
         }
 
