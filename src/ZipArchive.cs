@@ -7,17 +7,17 @@ namespace Microsoft.PowerShell.Archive
 {
     internal class ZipArchive : IArchive
     {
-        private bool disposedValue;
+        private bool _disposedValue;
 
-        private ArchiveMode _mode;
+        private readonly ArchiveMode _mode;
 
-        private string _archivePath;
+        private readonly string _archivePath;
 
-        private System.IO.FileStream _archiveStream;
+        private readonly System.IO.FileStream _archiveStream;
 
-        private System.IO.Compression.ZipArchive _zipArchive;
+        private readonly System.IO.Compression.ZipArchive _zipArchive;
 
-        private System.IO.Compression.CompressionLevel _compressionLevel;
+        private readonly System.IO.Compression.CompressionLevel _compressionLevel;
 
         private const char ZipArchiveDirectoryPathTerminator = '/';
 
@@ -31,7 +31,7 @@ namespace Microsoft.PowerShell.Archive
 
         public ZipArchive(string archivePath, ArchiveMode mode, System.IO.FileStream archiveStream, CompressionLevel compressionLevel)
         {
-            disposedValue = false;
+            _disposedValue = false;
             _mode = mode;
             _archivePath = archivePath;
             _archiveStream = archiveStream;
@@ -44,7 +44,7 @@ namespace Microsoft.PowerShell.Archive
         // it is up to the extraction software to deal with it (this is how it's done in other archive software).
         // The .NET API differentiates a file and folder based on the last character being '/'. In other words, if the last character in a path is '/', it is treated as a folder.
         // Otherwise, the .NET API treats the path as a file.
-        void IArchive.AddFilesytemEntry(ArchiveAddition addition)
+        void IArchive.AddFileSystemEntry(ArchiveAddition addition)
         {
             if (_mode == ArchiveMode.Extract) throw new InvalidOperationException("Cannot add a filesystem entry to an archive in read mode");
 
@@ -81,6 +81,8 @@ namespace Microsoft.PowerShell.Archive
                         }
                         entryInArchive.LastWriteTime = lastWriteTime;
                     }
+
+                    _zipArchive.CreateEntry(entryName);
                 }
             }
             else
@@ -90,6 +92,7 @@ namespace Microsoft.PowerShell.Archive
                 {
                     entryInArchive.Delete();
                 }
+
                 // TODO: Add exception handling
                 _zipArchive.CreateEntryFromFile(sourceFileName: addition.FileSystemInfo.FullName, entryName: entryName, compressionLevel: _compressionLevel);
             }
@@ -125,7 +128,7 @@ namespace Microsoft.PowerShell.Archive
             throw new NotImplementedException();
         }
 
-        private System.IO.Compression.ZipArchiveMode ConvertToZipArchiveMode(ArchiveMode archiveMode)
+        private static System.IO.Compression.ZipArchiveMode ConvertToZipArchiveMode(ArchiveMode archiveMode)
         {
             switch (archiveMode)
             {
@@ -138,7 +141,7 @@ namespace Microsoft.PowerShell.Archive
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (!_disposedValue)
             {
                 if (disposing)
                 {
@@ -146,7 +149,7 @@ namespace Microsoft.PowerShell.Archive
                     _archiveStream.Dispose();
                 }
 
-                disposedValue = true;
+                _disposedValue = true;
             }
         }
 
