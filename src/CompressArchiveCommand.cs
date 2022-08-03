@@ -13,21 +13,12 @@ namespace Microsoft.PowerShell.Archive
 {
     [Cmdlet("Compress", "Archive", SupportsShouldProcess = true)]
     [OutputType(typeof(FileInfo))]
-<<<<<<< HEAD
-    public class CompressArchiveCommand : ArchiveCommandBase
-=======
     public sealed class CompressArchiveCommand : PSCmdlet
->>>>>>> preview1-pr
     {
 
         // TODO: Add filter parameter
         // TODO: Add flatten parameter
         // TODO: Add comments to methods
-<<<<<<< HEAD
-
-        // TODO: Add tar support
-
-=======
         // TODO: Add tar support
 
         private enum ParameterSet
@@ -36,7 +27,6 @@ namespace Microsoft.PowerShell.Archive
             LiteralPath
         }
 
->>>>>>> preview1-pr
         /// <summary>
         /// The Path parameter - specifies paths of files or directories from the filesystem to add to or update in the archive.
         /// This parameter does expand wildcard characters.
@@ -104,7 +94,8 @@ namespace Microsoft.PowerShell.Archive
             ValidateDestinationPath();
 
             // Determine archive format based on DestinationPath
-            Format = DetermineArchiveFormat(destinationPath: _destinationPathInfo.FullName, archiveFormat: Format);
+            //Format = DetermineArchiveFormat(destinationPath: _destinationPathInfo.FullName, archiveFormat: Format);
+            DetermineArchiveFormat();
         }
 
         protected override void ProcessRecord()

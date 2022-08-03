@@ -13,6 +13,13 @@ namespace Microsoft.PowerShell.Archive
             return new ErrorRecord(exception, errorCode.ToString(), ErrorCategory.InvalidArgument, errorItem);
         }
 
+        internal static ErrorRecord GetErrorRecord(ErrorCode errorCode)
+        {
+            var errorMsg = GetErrorMessage(errorCode: errorCode);
+            var exception = new ArgumentException(errorMsg);
+            return new ErrorRecord(exception, errorCode.ToString(), ErrorCategory.InvalidArgument, null);
+        }
+
         internal static string GetErrorMessage(ErrorCode errorCode)
         {
             return errorCode switch
@@ -31,6 +38,7 @@ namespace Microsoft.PowerShell.Archive
                 ErrorCode.OverwriteDestinationPathFailed => Messages.OverwriteDestinationPathFailed,
                 ErrorCode.CannotOverwriteWorkingDirectory => Messages.CannotOverwriteWorkingDirectoryMessage,
                 ErrorCode.PathResolvedToMultiplePaths => Messages.PathResolvedToMultiplePathsMessage,
+                ErrorCode.CannotDetermineDestinationPath => Messages.CannotDetermineDestinationPath,
                 _ => throw new ArgumentOutOfRangeException(nameof(errorCode))
             };
         }
@@ -67,5 +75,7 @@ namespace Microsoft.PowerShell.Archive
         CannotOverwriteWorkingDirectory,
         // Expand-Archive: used when a path resolved to multiple paths when only one was needed
         PathResolvedToMultiplePaths,
+        // Expand-Archive: used when the DestinationPath could not be determined
+        CannotDetermineDestinationPath
     }
 }

@@ -22,6 +22,8 @@ namespace Microsoft.PowerShell.Archive
 
         string IArchive.Path => _path;
 
+        int IArchive.NumberOfEntries => throw new NotImplementedException();
+
         public TarArchive(string path, ArchiveMode mode, FileStream fileStream)
         {
             _mode = mode;
@@ -72,6 +74,11 @@ namespace Microsoft.PowerShell.Archive
             // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
+        }
+
+        bool IArchive.HasTopLevelDirectory()
+        {
+            throw new NotImplementedException();
         }
     }
 }
