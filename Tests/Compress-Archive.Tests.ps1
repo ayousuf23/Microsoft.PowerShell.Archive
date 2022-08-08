@@ -1,98 +1,17 @@
-<############################################################################################
- # File: Compress-Archive.Tests.ps1
- ############################################################################################>
- $script:TestSourceRoot = $PSScriptRoot
- $DS = [System.IO.Path]::DirectorySeparatorChar
- if ($IsWindows -eq $null) {
-     $IsWindows = $PSVersionTable.PSEdition -eq "Desktop"
- } 
- 
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+BeforeDiscovery {
+      # Loads and registers custom assertion. Ignores usage of unapproved verb with -DisableNameChecking
+      Import-Module "$PSScriptRoot/Assertions/Should-BeZipArchiveOnlyContaining.psm1" -DisableNameChecking
+}
+
  Describe("Microsoft.PowerShell.Archive tests") {
     BeforeAll {
-
-        $DS = [System.IO.Path]::DirectorySeparatorChar
 
         $originalProgressPref = $ProgressPreference
         $ProgressPreference = "SilentlyContinue"
         $originalPSModulePath = $env:PSModulePath
-        # make sure we use the one in this repo
-        $env:PSModulePath = "$($script:TestSourceRoot)\..;$($env:PSModulePath)"
-
-        # Add compression assemblies
-        function Add-CompressionAssemblies {
-            Add-Type -AssemblyName System.IO.Compression
-            if ($psedition -eq "Core")
-            {
-                Add-Type -AssemblyName System.IO.Compression.ZipFile
-            }
-            else
-            {
-                Add-Type -AssemblyName System.IO.Compression.FileSystem
-            }
-        }
-
-        Add-CompressionAssemblies
-
-        # Used for validating an archive's contents
-        function Test-ZipArchive {
-            param
-            (
-                [string] $archivePath,
-                [string[]] $expectedEntries
-            )
-    
-            try
-            {
-                $archiveFileStreamArgs = @($archivePath, [System.IO.FileMode]::Open)
-                $archiveFileStream = New-Object -TypeName System.IO.FileStream -ArgumentList $archiveFileStreamArgs
-    
-                $zipArchiveArgs = @($archiveFileStream, [System.IO.Compression.ZipArchiveMode]::Read, $false)
-                $zipArchive = New-Object -TypeName System.IO.Compression.ZipArchive -ArgumentList $zipArchiveArgs
-    
-                $actualEntryCount = $zipArchive.Entries.Count
-                $actualEntryCount | Should -Be $expectedEntries.Length
-
-                # Get a list of entry names in the zip archive
-                $archiveEntries = @()
-                ForEach ($archiveEntry in $zipArchive.Entries) {
-                    $archiveEntries += $archiveEntry.FullName
-                }
-
-                # Ensure each entry in the archive is in the list of expected entries
-                ForEach ($expectedEntry in $expectedEntries) {
-                    $expectedEntry | Should -BeIn $archiveEntries
-                }
-                
-            }
-            finally
-            {
-                if ($null -ne $zipArchive) { $zipArchive.Dispose()}
-                if ($null -ne $archiveFileStream) { $archiveFileStream.Dispose() }
-            }
-        }
-
-        # This function gets a list of a directories descendants formatted as archive entries
-        function Get-Descendants {
-            param (
-                [string] $Path
-            )
-            
-
-            # Get the folder name
-            $folderName =  Split-Path -Path $Path -Leaf
-
-            # Get descendents
-            $descendants = Get-ChildItem -Path $Path -Recurse -Name
-
-            $output = @()
-            
-            # Prefix each descendant name with folder name
-            foreach ($name in $descendants) {
-                $output += ($folderName + '/' + $name).Replace([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
-            }
-
-            return $output
-        }
     }
     
     AfterAll {
@@ -102,116 +21,91 @@
 
     Context "Parameter set validation tests" {
         BeforeAll {
-            function CompressArchivePathParameterSetValidator {
-                param
-                (
-                    [string[]] $path,
-                    [string] $destinationPath
-                )
-        
-                try
-                {
-                    Compress-Archive -Path $path -DestinationPath $destinationPath
-                    throw "ValidateNotNullOrEmpty attribute is missing on one of parameters belonging to Path parameterset."
-                }
-                catch
-                {
-                    $_.FullyQualifiedErrorId | Should -Be "ParameterArgumentValidationError,Microsoft.PowerShell.Archive.CompressArchiveCommand"
-                }
-            }
-        
-            function CompressArchiveLiteralPathParameterSetValidator {
-                param
-                (
-                    [string[]] $literalPath,
-                    [string] $destinationPath,
-                    [string] $compressionLevel = "Optimal"
-                )
-        
-                try
-                {
-                    Compress-Archive -LiteralPath $literalPath -DestinationPath $destinationPath
-                    throw "ValidateNotNullOrEmpty attribute is missing on one of parameters belonging to LiteralPath parameterset."
-                }
-                catch
-                {
-                    $_.FullyQualifiedErrorId | Should -Be "ParameterArgumentValidationError,Microsoft.PowerShell.Archive.CompressArchiveCommand"
-                }
-            }
-        
-        
-            function CompressArchiveInvalidPathValidator {
-                param
-                (
-                    [string[]] $path,
-                    [string] $destinationPath,
-                    [string] $invalidPath,
-                    [string] $expectedFullyQualifiedErrorId
-                )
-        
-                try
-                {
-                    Compress-Archive -Path $path -DestinationPath $destinationPath
-                    throw "Failed to validate that an invalid Path $invalidPath was supplied as input to Compress-Archive cmdlet."
-                }
-                catch
-                {
-                    $_.FullyQualifiedErrorId | Should -Be $expectedFullyQualifiedErrorId
-                }
-
-                try
-                {
-                    Compress-Archive -LiteralPath $path -DestinationPath $destinationPath
-                    throw "Failed to validate that an invalid LiteralPath $invalidPath was supplied as input to Compress-Archive cmdlet."
-                }
-                catch
-                {
-                    $_.FullyQualifiedErrorId | Should -Be $expectedFullyQualifiedErrorId
-                }
-            }
-            
             # Set up files for tests
-            New-Item $TestDrive$($DS)SourceDir -Type Directory | Out-Null
-            $content = "Some Data"
-            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)Sample-1.txt
-
-            New-Item $TestDrive$($DS)EmptyDirectory -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir -Type Directory
+            "Some Data" | Out-File -FilePath TestDrive:/SourceDir/Sample-1.txt
+            New-Item TestDrive:/EmptyDirectory -Type Directory | Out-Null
         }
 
 
-        It "Validate errors from Compress-Archive with NULL & EMPTY values for Path, LiteralPath, DestinationPath, CompressionLevel parameters" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)SampleSingleFile.zip"
+        It "Validate errors from Compress-Archive with null and empty values for Path, LiteralPath, and DestinationPath parameters" -ForEach @(
+            @{ Path = $null; DestinationPath = "TestDrive:/archive1.zip" }
+            @{ Path = "TestDrive:/SourceDir"; DestinationPath = $null }
+            @{ Path = $null; DestinationPath = $null }
+            @{ Path = ""; DestinationPath = "TestDrive:/archive1.zip" }
+            @{ Path = "TestDrive:/SourceDir"; DestinationPath = "" }
+            @{ Path = ""; DestinationPath = "" }
+        ) {
+            try
+            {
+                Compress-Archive -Path $Path -DestinationPath $DestinationPath
+                throw "ValidateNotNullOrEmpty attribute is missing on one of parameters belonging to LiteralPath parameterset."
+            }
+            catch
+            {
+                $_.FullyQualifiedErrorId | Should -Be "ParameterArgumentValidationError,Microsoft.PowerShell.Archive.CompressArchiveCommand"
+            }
 
-            CompressArchivePathParameterSetValidator $null $destinationPath
-            CompressArchivePathParameterSetValidator $sourcePath $null
-            CompressArchivePathParameterSetValidator $null $null
-
-            CompressArchivePathParameterSetValidator "" $destinationPath
-            CompressArchivePathParameterSetValidator $sourcePath ""
-            CompressArchivePathParameterSetValidator "" ""
-
-            CompressArchiveLiteralPathParameterSetValidator $null $destinationPath
-            CompressArchiveLiteralPathParameterSetValidator $sourcePath $null
-            CompressArchiveLiteralPathParameterSetValidator $null $null
-
-            CompressArchiveLiteralPathParameterSetValidator "" $destinationPath
-            CompressArchiveLiteralPathParameterSetValidator $sourcePath ""
-            CompressArchiveLiteralPathParameterSetValidator "" ""
+            try
+            {
+                Compress-Archive -LiteralPath $Path -DestinationPath $DestinationPath
+                throw "ValidateNotNullOrEmpty attribute is missing on one of parameters belonging to LiteralPath parameterset."
+            }
+            catch
+            {
+                $_.FullyQualifiedErrorId | Should -Be "ParameterArgumentValidationError,Microsoft.PowerShell.Archive.CompressArchiveCommand"
+            }
         }
 
-        It "Validate errors from Compress-Archive when invalid path (non-existing path / non-filesystem path) is supplied for Path or LiteralPath parameters" {
-            CompressArchiveInvalidPathValidator "$TestDrive$($DS)InvalidPath" "$TestDrive($DS)archive.zip" "$TestDrive$($DS)InvalidPath" "PathNotFound,Microsoft.PowerShell.Archive.CompressArchiveCommand"
+        It "Validate errors from Compress-Archive when invalid path is supplied for Path or LiteralPath parameters" -ForEach @(
+            @{ Path = "Variable:/PWD" }
+            @{ Path = @("TestDrive:/", "Variable:/PWD") }
+        ) {
+            $DestinationPath = "TestDrive:/archive2.zip"
 
-            $path = @("$TestDrive", "$TestDrive$($DS)InvalidPath")
-            CompressArchiveInvalidPathValidator $path "$TestDrive($DS)archive.zip" "$TestDrive$($DS)InvalidPath" "PathNotFound,Microsoft.PowerShell.Archive.CompressArchiveCommand"
+            Compress-Archive -Path $Path -DestinationPath $DestinationPath -ErrorAction SilentlyContinue -ErrorVariable error
+            $error.Count | Should -Be 1
+            $error[0].FullyQualifiedErrorId | Should -Be "InvalidPath,Microsoft.PowerShell.Archive.CompressArchiveCommand"
+            Remove-Item -Path $DestinationPath
+
+            Compress-Archive -LiteralPath $Path -DestinationPath $DestinationPath -ErrorAction SilentlyContinue -ErrorVariable error
+            $error.Count | Should -Be 1
+            $error[0].FullyQualifiedErrorId | Should -Be "InvalidPath,Microsoft.PowerShell.Archive.CompressArchiveCommand"
+            Remove-Item -Path $DestinationPath
+        }
+
+        It "Throws terminating error when non-existing path is supplied for Path or LiteralPath parameters" -ForEach @(
+            @{ Path = "TestDrive:/DoesNotExist" }
+            @{ Path = @("TestDrive:/", "TestDrive:/DoesNotExist") }
+        ) -Tag this2 {
+            $DestinationPath = "TestDrive:/archive3.zip"
+
+            try
+            {
+                Compress-Archive -Path $Path -DestinationPath $DestinationPath
+                throw "Failed to validate that an invalid Path was supplied as input to Compress-Archive cmdlet."
+            }
+            catch
+            {
+                $_.FullyQualifiedErrorId | Should -Be "PathNotFound,Microsoft.PowerShell.Archive.CompressArchiveCommand"
+            }
+
+            try
+            {
+                Compress-Archive -LiteralPath $Path -DestinationPath $DestinationPath
+                throw "Failed to validate that an invalid LiteralPath was supplied as input to Compress-Archive cmdlet."
+            }
+            catch
+            {
+                $_.FullyQualifiedErrorId | Should -Be "PathNotFound,Microsoft.PowerShell.Archive.CompressArchiveCommand"
+            }
         }
 
         It "Validate error from Compress-Archive when duplicate paths are supplied as input to Path parameter" {
             $sourcePath = @(
-                "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt",
-                "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt")
-            $destinationPath = "$TestDrive$($DS)DuplicatePaths.zip"
+                "TestDrive:/SourceDir/Sample-1.txt",
+                "TestDrive:/SourceDir/Sample-1.txt")
+            $destinationPath = "TestDrive:/DuplicatePaths.zip"
 
             try
             {
@@ -226,9 +120,9 @@
 
         It "Validate error from Compress-Archive when duplicate paths are supplied as input to LiteralPath parameter" {
             $sourcePath = @(
-                "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt",
-                "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt")
-            $destinationPath = "$TestDrive$($DS)DuplicatePaths.zip"
+                "TestDrive:/SourceDir/Sample-1.txt",
+                "TestDrive:/SourceDir/Sample-1.txt")
+            $destinationPath = "TestDrive:/DuplicatePaths.zip"
 
             try
             {
@@ -243,10 +137,10 @@
 
         ## From 504
         It "Validate that Source Path can be at SystemDrive location" -Skip {
-            $sourcePath = "$env:SystemDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)SampleFromSystemDrive.zip"
+            $sourcePath = "$env:SystemDrive/SourceDir"
+            $destinationPath = "TestDrive:/SampleFromSystemDrive.zip"
             New-Item $sourcePath -Type Directory | Out-Null # not enough permissions to write to drive root on Linux
-            "Some Data" | Out-File -FilePath $sourcePath$($DS)SampleSourceFileForArchive.txt
+            "Some Data" | Out-File -FilePath $sourcePath/SampleSourceFileForArchive.txt
             try
             {
                 Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
@@ -260,7 +154,7 @@
 
         # This cannot happen in -WriteMode Create because another error will be throw before
         It "Throws an error when Path and DestinationPath are the same" -Skip {
-            $sourcePath = "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt"
+            $sourcePath = "TestDrive:/SourceDir/Sample-1.txt"
             $destinationPath = $sourcePath
 
             try {
@@ -273,7 +167,7 @@
         }
 
         It "Throws an error when Path and DestinationPath are the same and -Update is specified" {
-            $sourcePath = "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt"
+            $sourcePath = "TestDrive:/SourceDir/Sample-1.txt"
             $destinationPath = $sourcePath
 
             try {
@@ -285,7 +179,7 @@
         }
 
         It "Throws an error when Path and DestinationPath are the same and -Overwrite is specified" {
-            $sourcePath = "$TestDrive$($DS)EmptyDirectory"
+            $sourcePath = "TestDrive:/EmptyDirectory"
             $destinationPath = $sourcePath
 
             try {
@@ -297,7 +191,7 @@
         }
 
         It "Throws an error when LiteralPath and DestinationPath are the same" -Skip {
-            $sourcePath = "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt"
+            $sourcePath = "TestDrive:/SourceDir/Sample-1.txt"
             $destinationPath = $sourcePath
 
             try {
@@ -309,7 +203,7 @@
         }
 
         It "Throws an error when LiteralPath and DestinationPath are the same and -Update is specified" {
-            $sourcePath = "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt"
+            $sourcePath = "TestDrive:/SourceDir/Sample-1.txt"
             $destinationPath = $sourcePath
 
             try {
@@ -321,7 +215,7 @@
         }
 
         It "Throws an error when LiteralPath and DestinationPath are the same and -Overwrite is specified" {
-            $sourcePath = "$TestDrive$($DS)EmptyDirectory"
+            $sourcePath = "TestDrive:/EmptyDirectory"
             $destinationPath = $sourcePath
 
             try {
@@ -335,15 +229,15 @@
 
     Context "WriteMode tests" {
         BeforeAll {
-            New-Item $TestDrive$($DS)SourceDir -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir -Type Directory | Out-Null
     
             $content = "Some Data"
-            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)Sample-1.txt
+            $content | Out-File -FilePath TestDrive:/SourceDir/Sample-1.txt
         }
 
         It "Throws a terminating error when an incorrect value is supplied to -WriteMode" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)archive1.zip"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:/archive1.zip"
 
             try {
                 Compress-Archive -Path $sourcePath -DestinationPath $destinationPath -WriteMode mode
@@ -353,144 +247,128 @@
         }
 
         It "-WriteMode Create works" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)archive1.zip"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:/archive1.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            Test-Path $destinationPath
-            Test-ZipArchive $destinationPath @('SourceDir/', 'SourceDir/Sample-1.txt')
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('SourceDir/', 'SourceDir/Sample-1.txt')
+
+            
         }
     }
 
     Context "Basic functional tests" {
         BeforeAll {
-            New-Item $TestDrive$($DS)SourceDir -Type Directory | Out-Null
-            New-Item $TestDrive$($DS)SourceDir$($DS)ChildDir-1 -Type Directory | Out-Null
-            New-Item $TestDrive$($DS)SourceDir$($DS)ChildDir-2 -Type Directory | Out-Null
-            New-Item $TestDrive$($DS)SourceDir$($DS)ChildEmptyDir -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir/ChildDir-1 -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir/ChildDir-2 -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir/ChildEmptyDir -Type Directory | Out-Null
 
             # create an empty directory
-            New-Item $TestDrive$($DS)EmptyDir -Type Directory | Out-Null
+            New-Item TestDrive:/EmptyDir -Type Directory | Out-Null
     
             $content = "Some Data"
-            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)Sample-1.txt
-            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt
-            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)ChildDir-2$($DS)Sample-3.txt
+            $content | Out-File -FilePath TestDrive:/SourceDir/Sample-1.txt
+            $content | Out-File -FilePath TestDrive:/SourceDir/ChildDir-1/Sample-2.txt
+            $content | Out-File -FilePath TestDrive:/SourceDir/ChildDir-2/Sample-3.txt
 
-            "Hello, World!" | Out-File -FilePath $TestDrive$($DS)HelloWorld.txt
+            "Hello, World!" | Out-File -FilePath TestDrive:/HelloWorld.txt
 
             # Create a zero-byte file
-            New-Item $TestDrive$($DS)EmptyFile -Type File | Out-Null
+            New-Item TestDrive:/EmptyFile -Type File | Out-Null
 
             # Create a file whose last write time is before 1980
-            $content | Out-File -FilePath $TestDrive$($DS)OldFile.txt
-            Set-ItemProperty -Path $TestDrive$($DS)OldFile.txt -Name LastWriteTime -Value '1974-01-16 14:44'
+            $content | Out-File -FilePath TestDrive:/OldFile.txt
+            Set-ItemProperty -Path TestDrive:/OldFile.txt -Name LastWriteTime -Value '1974-01-16 14:44'
         }
 
         It "Compresses a single file" {
-            $sourcePath = "$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt"
-            $destinationPath = "$TestDrive$($DS)archive1.zip"
+            $sourcePath = "TestDrive:/SourceDir/ChildDir-1/Sample-2.txt"
+            $destinationPath = "TestDrive:/archive1.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('Sample-2.txt')
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('Sample-2.txt')
         }
 
         It "Compresses a non-empty directory" {
-            $sourcePath =  "$TestDrive$($DS)SourceDir$($DS)ChildDir-1"
-            $destinationPath = "$TestDrive$($DS)archive2.zip"
-            
+            $sourcePath =  "TestDrive:/SourceDir/ChildDir-1"
+            $destinationPath = "TestDrive:/archive2.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('ChildDir-1/', 'ChildDir-1/Sample-2.txt')
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('ChildDir-1/', 'ChildDir-1/Sample-2.txt')
         }
 
         It "Compresses an empty directory" {
-            $sourcePath = "$TestDrive$($DS)EmptyDir"
-            $destinationPath = "$TestDrive$($DS)archive3.zip"
+            $sourcePath = "TestDrive:/EmptyDir"
+            $destinationPath = "TestDrive:/archive3.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('EmptyDir/')
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('EmptyDir/')
         }
 
         It "Compresses multiple files" {
-            $sourcePath = @("$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt")
-            $destinationPath = "$TestDrive$($DS)archive4.zip"
+            $sourcePath = @("TestDrive:/SourceDir/ChildDir-1/Sample-2.txt", "TestDrive:/SourceDir/Sample-1.txt")
+            $destinationPath = "TestDrive:/archive4.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('Sample-1.txt', 'Sample-2.txt')
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('Sample-1.txt', 'Sample-2.txt')
         }
 
         It "Compresses multiple files and a single empty directory" {
-            $sourcePath = @("$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt", 
-            "$TestDrive$($DS)SourceDir$($DS)ChildEmptyDir")
-            
-            $destinationPath = "$TestDrive$($DS)archive5.zip"
+            $sourcePath = @("TestDrive:/SourceDir/ChildDir-1/Sample-2.txt", "TestDrive:/SourceDir/Sample-1.txt", 
+            "TestDrive:/SourceDir/ChildEmptyDir")
+            $destinationPath = "TestDrive:/archive5.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('Sample-1.txt', 'Sample-2.txt', 'ChildEmptyDir/')
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('Sample-1.txt', 'Sample-2.txt', 'ChildEmptyDir/')
         }
 
         It "Compresses multiple files and a single non-empty directory" {
-            $sourcePath = @("$TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt", 
-            "$TestDrive$($DS)SourceDir$($DS)ChildDir-2")
-            
-            $destinationPath = "$TestDrive$($DS)archive6.zip"
+            $sourcePath = @("TestDrive:/SourceDir/ChildDir-1/Sample-2.txt", "TestDrive:/SourceDir/Sample-1.txt", 
+            "TestDrive:/SourceDir/ChildDir-2")
+            $destinationPath = "TestDrive:/archive6.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('Sample-1.txt', 'Sample-2.txt', 'ChildDir-2/', 'ChildDir-2/Sample-3.txt')
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('Sample-1.txt', 'Sample-2.txt', 'ChildDir-2/', 'ChildDir-2/Sample-3.txt')
         }
 
         It "Compresses multiple files and non-empty directories" {
-            $sourcePath = @("$TestDrive$($DS)HelloWorld.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt", 
-            "$TestDrive$($DS)SourceDir$($DS)ChildDir-1", "$TestDrive$($DS)SourceDir$($DS)ChildDir-2")
-            
-            $destinationPath = "$TestDrive$($DS)archive7.zip"
+            $sourcePath = @("TestDrive:/HelloWorld.txt", "TestDrive:/SourceDir/Sample-1.txt", 
+            "TestDrive:/SourceDir/ChildDir-1", "TestDrive:/SourceDir/ChildDir-2")      
+            $destinationPath = "TestDrive:/archive7.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('Sample-1.txt', 'HelloWorld.txt', 'ChildDir-1/', 'ChildDir-2/', 
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('Sample-1.txt', 'HelloWorld.txt', 'ChildDir-1/', 'ChildDir-2/', 
             'ChildDir-1/Sample-2.txt', 'ChildDir-2/Sample-3.txt')
         }
 
         It "Compresses multiple files, non-empty directories, and an empty directory" {
-            $sourcePath = @("$TestDrive$($DS)HelloWorld.txt", "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt", 
-            "$TestDrive$($DS)SourceDir$($DS)ChildDir-1", "$TestDrive$($DS)SourceDir$($DS)ChildDir-2", "$TestDrive$($DS)SourceDir$($DS)ChildEmptyDir")
-            
-            $destinationPath = "$TestDrive$($DS)archive8.zip"
+            $sourcePath = @("TestDrive:/HelloWorld.txt", "TestDrive:/SourceDir/Sample-1.txt", 
+            "TestDrive:/SourceDir/ChildDir-1", "TestDrive:/SourceDir/ChildDir-2", "TestDrive:/SourceDir/ChildEmptyDir")
+            $destinationPath = "TestDrive:/archive8.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('Sample-1.txt', 'HelloWorld.txt', 'ChildDir-1/', 'ChildDir-2/', 
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('Sample-1.txt', 'HelloWorld.txt', 'ChildDir-1/', 'ChildDir-2/', 
             'ChildDir-1/Sample-2.txt', 'ChildDir-2/Sample-3.txt', "ChildEmptyDir/")
         }
 
         It "Compresses a directory containing files, non-empty directories, and an empty directory can be compressed" -Tag td4 {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)archive9.zip"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:/archive9.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
             $contents = @('SourceDir/', 'SourceDir/ChildDir-1/', 'SourceDir/ChildDir-2/', 'SourceDir/ChildEmptyDir/', 'SourceDir/Sample-1.txt', 
             'SourceDir/ChildDir-1/Sample-2.txt', 'SourceDir/ChildDir-2/Sample-3.txt')
-            Test-ZipArchive $destinationPath $contents
+            $destinationPath | Should -BeZipArchiveOnlyContaining $contents
         }
 
         It "Compresses a zero-byte file" {
-            $sourcePath = "$TestDrive$($DS)EmptyFile"
-            $destinationPath = "$TestDrive$($DS)archive10.zip"
+            $sourcePath = "TestDrive:/EmptyFile"
+            $destinationPath = "TestDrive:/archive10.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            $contents = @('EmptyFile')
-            Test-ZipArchive $destinationPath $contents
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('EmptyFile')
         }
 
         It "Compresses a file whose last write time is before 1980" {
-            $sourcePath = "$TestDrive$($DS)OldFile.txt"
-            $destinationPath = "$TestDrive$($DS)archive11.zip"
+            $sourcePath = "TestDrive:/OldFile.txt"
+            $destinationPath = "${TestDrive}/archive11.zip"
 
             # Assert the last write time of the file is before 1980
             $dateProperty = Get-ItemPropertyValue -Path $sourcePath -Name "LastWriteTime"
             $dateProperty.Year | Should -BeLessThan 1980
 
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('OldFile.txt')
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('OldFile.txt')
 
             # Get the archive
             $fileMode = [System.IO.FileMode]::Open
@@ -514,15 +392,14 @@
         }
 
         It "Compresses a directory whose last write time is before 1980" {
-            New-Item -Path "$TestDrive/olddirectory" -ItemType Directory
-            Set-ItemProperty -Path "$TestDrive/olddirectory" -Name "LastWriteTime" -Value '1974-01-16 14:44'
+            New-Item -Path "TestDrive:/olddirectory" -ItemType Directory
+            Set-ItemProperty -Path "TestDrive:/olddirectory" -Name "LastWriteTime" -Value '1974-01-16 14:44'
 
-            $sourcePath = "$TestDrive$($DS)olddirectory"
-            $destinationPath = "$TestDrive$($DS)archive12.zip"
+            $sourcePath = "TestDrive:/olddirectory"
+            $destinationPath = "${TestDrive}/archive12.zip"
 
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            $destinationPath | Should -Exist
-            Test-ZipArchive $destinationPath @('olddirectory/')
+            $destinationPath | Should -BeZipArchiveOnlyContaining @('olddirectory/')
 
             # Get the archive
             $fileMode = [System.IO.FileMode]::Open
@@ -552,30 +429,30 @@
 
     Context "DestinationPath and -WriteMode Overwrite tests" {
         BeforeAll {
-            New-Item $TestDrive$($DS)SourceDir -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir -Type Directory | Out-Null
     
             $content = "Some Data"
-            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)Sample-1.txt
+            $content | Out-File -FilePath TestDrive:/SourceDir/Sample-1.txt
             
-            New-Item $TestDrive$($DS)archive3.zip -Type Directory | Out-Null
+            New-Item TestDrive:/archive3.zip -Type Directory | Out-Null
 
-            New-Item $TestDrive$($DS)EmptyDirectory -Type Directory | Out-Null
+            New-Item TestDrive:/EmptyDirectory -Type Directory | Out-Null
 
             # Create a read-only archive
-            $readOnlyArchivePath = "$TestDrive$($DS)readonly.zip"
-            Compress-Archive -Path $TestDrive$($DS)SourceDir$($DS)Sample-1.txt -DestinationPath $readOnlyArchivePath
+            $readOnlyArchivePath = "TestDrive:/readonly.zip"
+            Compress-Archive -Path TestDrive:/SourceDir/Sample-1.txt -DestinationPath $readOnlyArchivePath
             Set-ItemProperty -Path $readOnlyArchivePath -Name IsReadOnly -Value $true
 
-            # Create $TestDrive$($DS)archive.zip
-            Compress-Archive -Path $TestDrive$($DS)SourceDir$($DS)Sample-1.txt -DestinationPath "$TestDrive$($DS)archive.zip"
+            # Create TestDrive:/archive.zip
+            Compress-Archive -Path TestDrive:/SourceDir/Sample-1.txt -DestinationPath "TestDrive:/archive.zip"
 
             # Create Sample-2.txt
-            $content | Out-File -FilePath $TestDrive$($DS)Sample-2.txt
+            $content | Out-File -FilePath TestDrive:/Sample-2.txt
         }
 
         It "Throws an error when archive file already exists and -Update and -Overwrite parameters are not specified" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)archive1.zip"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:/archive1.zip"
 
             try
             {
@@ -590,8 +467,8 @@
         }
 
         It "Throws a terminating error when archive file exists and -Update is specified but the archive is read-only" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)readonly.zip"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:/readonly.zip"
 
             try
             {
@@ -605,8 +482,8 @@
         }
 
         It "Throws a terminating error when archive already exists as a directory and -Update and -Overwrite parameters are not specified" {
-            $sourcePath = "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt"
-            $destinationPath = "$TestDrive$($DS)SourceDir"
+            $sourcePath = "TestDrive:/SourceDir/Sample-1.txt"
+            $destinationPath = "TestDrive:/SourceDir"
 
             try
             {
@@ -620,8 +497,8 @@
         }
 
         It "Throws a terminating error when DestinationPath is a directory and -Update is specified" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)archive3.zip"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:/archive3.zip"
 
             try
             {
@@ -635,8 +512,8 @@
         }
 
         It "Throws a terminating error when DestinationPath is a folder containing at least 1 item and Overwrite is specified" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:"
 
             try
             {
@@ -650,8 +527,8 @@
         }
 
         It "Throws a terminating error when archive does not exist and -Update mode is specified" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)archive2.zip"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:/archive2.zip"
 
             try
             {
@@ -666,8 +543,8 @@
 
         ## Overwrite tests
         It "Throws an error when trying to overwrite an empty directory, which is the working directory" {
-            $sourcePath = "$TestDrive$($DS)Sample-2.txt"
-            $destinationPath = "$TestDrive$($DS)EmptyDirectory"
+            $sourcePath = "TestDrive:/Sample-2.txt"
+            $destinationPath = "TestDrive:/EmptyDirectory"
 
             Push-Location $destinationPath
 
@@ -681,50 +558,50 @@
         }
 
         It "Overwrites a directory containing no items when -Overwrite is specified" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)EmptyDirectory"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:/EmptyDirectory"
 
-            (Get-Item $destinationPath) -is [System.IO.DirectoryInfo] | Should -Be $true
+            # Ensure $destinationPath is a directory
+            Test-Path $destinationPath -PathType Container | Should -Be $true
+            
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath -WriteMode Overwrite
 
-            # Ensure $destiationPath is now a file
-            $destinationPathInfo = Get-Item $destinationPath
-            $destinationPathInfo -is [System.IO.DirectoryInfo] | Should -Be $false
-            $destinationPathInfo -is [System.IO.FileInfo] | Should -Be $true
+            # Ensure $destinationPath is now a file
+            Test-Path $destinationPath -PathType Leaf | Should -Be $true
         }
 
         It "Overwrites an archive that already exists" {
-            $destinationPath = "$TestDrive$($DS)archive.zip"
+            $destinationPath = "TestDrive:/archive.zip"
 
-            # Get the entries of the original zip archive
-            Test-ZipArchive $destinationPath @("Sample-1.txt") 
+            # Ensure the original archive contains Sample-1.txt
+            $destinationPath | Should -BeZipArchiveOnlyContaining @("Sample-1.txt") 
 
             # Overwrite the archive
-            $sourcePath = "$TestDrive$($DS)Sample-2.txt"
-            Compress-Archive -Path $sourcePath -DestinationPath "$TestDrive$($DS)archive.zip" -WriteMode Overwrite
+            $sourcePath = "TestDrive:/Sample-2.txt"
+            Compress-Archive -Path $sourcePath -DestinationPath "TestDrive:/archive.zip" -WriteMode Overwrite
 
             # Ensure the original entries and different than the new entries
-            Test-ZipArchive $destinationPath @("Sample-2.txt") 
+            $destinationPath | Should -BeZipArchiveOnlyContaining @("Sample-2.txt") 
         }
     }
 
     Context "Relative Path tests" {
         BeforeAll {
-            New-Item $TestDrive$($DS)SourceDir -Type Directory | Out-Null
-            New-Item $TestDrive$($DS)SourceDir$($DS)ChildDir-1 -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir/ChildDir-1 -Type Directory | Out-Null
     
             $content = "Some Data"
-            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)Sample-1.txt
-            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)ChildDir-1$($DS)Sample-2.txt
+            $content | Out-File -FilePath TestDrive:/SourceDir/Sample-1.txt
+            $content | Out-File -FilePath TestDrive:/SourceDir/ChildDir-1/Sample-2.txt
         }
 
         # From 568
         It "Validate that relative path can be specified as Path parameter of Compress-Archive cmdlet" {
-            $sourcePath = ".$($DS)SourceDir"
+            $sourcePath = "./SourceDir"
             $destinationPath = "RelativePathForPathParameter.zip"
             try
             {
-                Push-Location $TestDrive
+                Push-Location TestDrive:/
                 Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
         	    Test-Path $destinationPath | Should -Be $true
             }
@@ -736,11 +613,11 @@
 
         # From 582
         It "Validate that relative path can be specified as LiteralPath parameter of Compress-Archive cmdlet" {
-            $sourcePath = ".$($DS)SourceDir"
+            $sourcePath = "./SourceDir"
             $destinationPath = "RelativePathForLiteralPathParameter.zip"
             try
             {
-                Push-Location $TestDrive
+                Push-Location TestDrive:/
                 Compress-Archive -LiteralPath $sourcePath -DestinationPath $destinationPath
         	    Test-Path $destinationPath | Should -Be $true
             }
@@ -751,12 +628,12 @@
         }
 
         # From 596
-        It "Validate that relative path can be specified as DestinationPath parameter of Compress-Archive cmdlet" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = ".$($DS)RelativePathForDestinationPathParameter.zip"
+        It "Validate that relative path can be specified as DestinationPath parameter of Compress-Archive cmdlet" -Tag this3 {
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "./RelativePathForDestinationPathParameter.zip"
             try
             {
-                Push-Location $TestDrive
+                Push-Location TestDrive:/
                 Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
         	    Test-Path $destinationPath | Should -Be $true
             }
@@ -769,37 +646,39 @@
 
     Context "Special and Wildcard Characters Tests" {
         BeforeAll {
-            New-Item $TestDrive$($DS)SourceDir -Type Directory | Out-Null
+            New-Item TestDrive:/SourceDir -Type Directory
 
-            New-Item -Path "$TestDrive$($DS)Source`[`]Dir" -Type Directory | Out-Null
+            New-Item -Path "TestDrive:/Source`[`]Dir" -Type Directory
     
             $content = "Some Data"
-            $content | Out-File -FilePath $TestDrive$($DS)SourceDir$($DS)Sample-1.txt
-            $content | Out-File -LiteralPath $TestDrive$($DS)file1[].txt
+            $content | Out-File -FilePath TestDrive:/SourceDir/Sample-1.txt
+            $content | Out-File -LiteralPath TestDrive:/file1[].txt
+    
+            $content = "Some Data"
+            $content | Out-File -FilePath TestDrive:/SourceDir/Sample-1.txt
         }
 
         It "Accepts DestinationPath parameter with wildcard characters that resolves to one path" {
-            $sourcePath = "$TestDrive$($DS)SourceDir$($DS)Sample-1.txt"
-            $destinationPath = "$TestDrive$($DS)Sample[]SingleFile.zip"
+            $sourcePath = "TestDrive:/SourceDir/Sample-1.txt"
+            $destinationPath = "TestDrive:/Sample[]SingleFile.zip"
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
         	Test-Path -LiteralPath $destinationPath | Should -Be $true
             Remove-Item -LiteralPath $destinationPath
         }
 
         It "Accepts DestinationPath parameter with [ but no matching ]" {
-            $sourcePath = "$TestDrive$($DS)SourceDir"
-            $destinationPath = "$TestDrive$($DS)archive[2.zip"
+            $sourcePath = "TestDrive:/SourceDir"
+            $destinationPath = "TestDrive:/archive[2.zip"
 
             Compress-Archive -Path $sourcePath -DestinationPath $destinationPath
-            Test-Path -LiteralPath $destinationPath | Should -Be $true
-            Test-ZipArchive $destinationPath @("SourceDir/", "SourceDir/Sample-1.txt")
+            $destinationPath | Should -BeZipArchiveOnlyContaining  @("SourceDir/", "SourceDir/Sample-1.txt") -LiteralPath
             Remove-Item -LiteralPath $destinationPath -Force
         }
 
         It "Accepts LiteralPath parameter for a directory with special characters in the directory name"  -skip:(($PSVersionTable.psversion.Major -lt 5) -and ($PSVersionTable.psversion.Minor -lt 0)) {
-            $sourcePath = "$TestDrive$($DS)Source[]Dir"
-            "Some Random Content" | Out-File -LiteralPath "$sourcePath$($DS)Sample[]File.txt"
-            $destinationPath = "$TestDrive$($DS)archive3.zip"
+            $sourcePath = "TestDrive:/Source[]Dir"
+            "Some Random Content" | Out-File -LiteralPath "$sourcePath/Sample[]File.txt"
+            $destinationPath = "TestDrive:/archive3.zip"
             try
             {
                 Compress-Archive -LiteralPath $sourcePath -DestinationPath $destinationPath
@@ -812,12 +691,12 @@
         }
 
         It "Accepts LiteralPath parameter for a file with wildcards in the filename" {
-            $sourcePath = "$TestDrive$($DS)file1[].txt"
-            $destinationPath = "$TestDrive$($DS)archive4.zip"
+            $sourcePath = "TestDrive:/file1[].txt"
+            $destinationPath = "TestDrive:/archive4.zip"
             try
             {
                 Compress-Archive -LiteralPath $sourcePath -DestinationPath $destinationPath
-                $destinationPath | Should -Exist
+                $destinationPath | Should -BeZipArchiveOnlyContaining @("file1[].txt")
             }
             finally
             {

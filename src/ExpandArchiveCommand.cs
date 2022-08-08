@@ -66,6 +66,7 @@ namespace Microsoft.PowerShell.Archive
 
         protected override void EndProcessing()
         {
+            /*
             // Resolve Path or LiteralPath
             bool checkForWildcards = ParameterSetName == "Path";
             string path = checkForWildcards ? Path : LiteralPath;
@@ -123,7 +124,7 @@ namespace Microsoft.PowerShell.Archive
             {
                 // TODO: Change this later to write an error
                 throw unauthorizedAccessException;
-            }
+            }*/
         }
 
         protected override void StopProcessing()
@@ -136,7 +137,7 @@ namespace Microsoft.PowerShell.Archive
         private void ProcessArchiveEntry(IEntry entry)
         {
             // The location of the entry post-expanding of the archive
-            string postExpandPath = GetPostExpansionPath(entryName: entry.Name, destinationPath: _destinationPathInfo.FullName);
+            string postExpandPath = GetPostExpansionPath(entryName: entry.Name, destinationPath: DestinationPath);
 
             // If postExpandPath has a terminating `/`, remove it (there is case where overwriting a file may fail because of this)
             if (postExpandPath.EndsWith(System.IO.Path.DirectorySeparatorChar))
@@ -213,12 +214,12 @@ namespace Microsoft.PowerShell.Archive
             ErrorCode? errorCode = null;
 
             // In this case, DestinationPath does not exist
-            if (!_destinationPathInfo.Exists)
+            if (!System.IO.Path.Exists(DestinationPath))
             {
                 // Do nothing
             }
             // Check if DestinationPath is an existing directory
-            else if (_destinationPathInfo.Attributes.HasFlag(FileAttributes.Directory))
+            else if (Directory.Exists(DestinationPath))
             {
                 // Do nothing
             }
@@ -241,7 +242,7 @@ namespace Microsoft.PowerShell.Archive
 
             // Ensure sourcePath is not the same as the destination path when the cmdlet is in overwrite mode
             // When the cmdlet is not in overwrite mode, other errors will be thrown when validating DestinationPath before it even gets to this line
-            if (PathHelper.ArePathsSame(sourcePath, _destinationPathInfo) && WriteMode == ExpandArchiveWriteMode.Overwrite)
+            if (sourcePath.FullName == DestinationPath && WriteMode == ExpandArchiveWriteMode.Overwrite)
             {
                 if (ParameterSetName == "Path")
                 {
