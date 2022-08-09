@@ -279,6 +279,10 @@ BeforeDiscovery {
             # Create a file whose last write time is before 1980
             $content | Out-File -FilePath TestDrive:/OldFile.txt
             Set-ItemProperty -Path TestDrive:/OldFile.txt -Name LastWriteTime -Value '1974-01-16 14:44'
+
+            # Create a directory whose last write time is before 1980
+            New-Item -Path "TestDrive:/olddirectory" -ItemType Directory
+            Set-ItemProperty -Path "TestDrive:/olddirectory" -Name "LastWriteTime" -Value '1974-01-16 14:44'
         }
 
         It "Compresses a single file" {
@@ -392,9 +396,6 @@ BeforeDiscovery {
         }
 
         It "Compresses a directory whose last write time is before 1980" {
-            New-Item -Path "TestDrive:/olddirectory" -ItemType Directory
-            Set-ItemProperty -Path "TestDrive:/olddirectory" -Name "LastWriteTime" -Value '1974-01-16 14:44'
-
             $sourcePath = "TestDrive:/olddirectory"
             $destinationPath = "${TestDrive}/archive12.zip"
 
@@ -420,6 +421,30 @@ BeforeDiscovery {
 
             $archive.Dispose()
             $archiveStream.Dispose()
+        }
+
+        It "Writes a warning when compressing a file whose last write time is before 1980" {
+            $sourcePath = "TestDrive:/OldFile.txt"
+            $destinationPath = "${TestDrive}/archive13.zip"
+
+            # Assert the last write time of the file is before 1980
+            $dateProperty = Get-ItemPropertyValue -Path $sourcePath -Name "LastWriteTime"
+            $dateProperty.Year | Should -BeLessThan 1980
+
+            Compress-Archive -Path $sourcePath -DestinationPath $destinationPath -WarningVariable warnings
+            $warnings.Length | Should -Be 1
+        }
+
+        It "Writes a warning when compresing a directory whose last write time is before 1980" {
+            $sourcePath = "TestDrive:/olddirectory"
+            $destinationPath = "${TestDrive}/archive14.zip"
+
+            # Assert the last write time of the file is before 1980
+            $dateProperty = Get-ItemPropertyValue -Path $sourcePath -Name "LastWriteTime"
+            $dateProperty.Year | Should -BeLessThan 1980
+
+            Compress-Archive -Path $sourcePath -DestinationPath $destinationPath -WarningVariable warnings
+            $warnings.Length | Should -Be 1
         }
     }
 
@@ -702,6 +727,29 @@ BeforeDiscovery {
             {
                 Remove-Item -LiteralPath $sourcePath -Force -Recurse
             }
+        }
+    }
+
+    Context "PassThru tests" {
+        BeforeAll {
+            New-Item -Path TestDrive:/file.txt -ItemType File
+        }
+
+        It "Returns an object of type System.IO.FileInfo when PassThru is specified" {
+            $output = Compress-Archive -Path TestDrive:/file.txt -DestinationPath TestDrive:/archive1.zip -PassThru
+            $output | Should -BeOfType System.IO.FileInfo
+            $destinationPath = Join-Path $TestDrive "archive1.zip"
+            $output.FullName | Should -Be $destinationPath
+        }
+
+        It "Does not return an object when PassThru is not specified" {            
+            $output = Compress-Archive -Path TestDrive:/file.txt -DestinationPath TestDrive:/archive2.zip
+            $output | Should -BeNullOrEmpty
+        }
+
+        It "Does not return an object when PassThru is false" {            
+            $output = Compress-Archive -Path TestDrive:/file.txt -DestinationPath TestDrive:/archive3.zip -PassThru:$false
+            $output | Should -BeNullOrEmpty
         }
     }
 }
