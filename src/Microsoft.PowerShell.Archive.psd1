@@ -1,5 +1,5 @@
 @{
-ModuleVersion = '2.0.1'
+ModuleVersion = '2.0.2'
 GUID = '06a335eb-dd10-4d25-b753-4f6a80163516'
 Author = 'Microsoft'
 CompanyName = 'Microsoft'
@@ -14,7 +14,7 @@ PrivateData = @{
         ProjectUri = 'https://github.com/PowerShell/Microsoft.PowerShell.Archive'
         LicenseUri = 'https://go.microsoft.com/fwlink/?linkid=2203619'
         ReleaseNotes = @'
-        ## 2.0.1-preview2
+        ## 2.0.2-preview2
         - Rewrote `Expand-Archive` cmdlet in C#
         - Added `-Format` parameter to `Expand-Archive`
         - Added `-WriteMode` parameter to `Expand-Archive`
