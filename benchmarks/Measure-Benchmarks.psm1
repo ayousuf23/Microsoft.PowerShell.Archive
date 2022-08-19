@@ -24,6 +24,8 @@ function Measure-These {
             $minTime = -1
             $maxTime = -1
 
+            $count = 0
+
             1..$Count | % {
                 # Run the before block
                 if ($null -ne $BeforeEach) {
@@ -49,7 +51,9 @@ function Measure-These {
                 # Run the after block
                 if ($null -ne $AfterEach) {
                     Invoke-Command $AfterEach -ErrorAction Stop
-                } 
+                }
+
+                $count++
             }
 
             
@@ -61,6 +65,7 @@ function Measure-These {
                 Maximum = $maxTime
                 Total = $totalTime
                 Title = $Titles[$scriptBlockCount]
+                Count = $count
             }
 
             $scriptBlockCount++
