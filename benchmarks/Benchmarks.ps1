@@ -2,6 +2,8 @@ New-Item CompressArchiveBenchmarks -ItemType Directory
 
 $timesToRunEach = 1
 
+New-Item CompressArchiveBenchmarks/file.txt -ItemType File
+"Hello, World!" | Out-File CompressArchiveBenchmarks/file.txt
 
 # Expand a small archive benchmarks
 7z a CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/file.txt
