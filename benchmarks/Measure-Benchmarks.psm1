@@ -4,7 +4,7 @@ function Measure-These {
         [Parameter(Mandatory = $true)] $Count,
         [Parameter(Mandatory = $false)] [ScriptBlock] $BeforeAll,
         [Parameter(Mandatory = $false)] [ScriptBlock] $BeforeEach,
-        [Parameter(Mandatory = $true)] [ScriptBlock[]] $ToMeasure,
+        [Parameter(Mandatory = $true)] [ScriptBlock] $ToMeasure,
         [Parameter(Mandatory = $true)] [string[]] $Titles,
         [Parameter(Mandatory = $false)] [ScriptBlock] $AfterEach
     )
@@ -17,59 +17,56 @@ function Measure-These {
         } 
 
         $scriptBlockCount = 0
-
-        1..$ToMeasure.Count | % {
             
-            $totalTime = 0
-            $minTime = -1
-            $maxTime = -1
+        $totalTime = 0
+        $minTime = -1
+        $maxTime = -1
 
-            $count = 0
+        $times = 0
 
-            1..$Count | % {
-                # Run the before block
-                if ($null -ne $BeforeEach) {
-                    Invoke-Command $BeforeEach -ErrorAction Stop
-                }
-                # Run the block to measure
-                $timeTaken = Measure-Command -Expression $ToMeasure[$scriptBlockCount]
+        1..$Count | % {
+            # Run the before block
+            if ($null -ne $BeforeEach) {
+                Invoke-Command $BeforeEach -ErrorAction Stop
+            }
+            # Run the block to measure
+            $timeTaken = Measure-Command -Expression $ToMeasure[$scriptBlockCount]
 
-                $totalTime += $timeTaken.TotalMilliseconds
+            $totalTime += $timeTaken.TotalMilliseconds
 
-                if ($minTime -lt 0) {
-                    $minTime = $timeTaken.TotalMilliseconds
-                } else {
-                    $minTime = [Math]::Min($minTime, $timeTaken.TotalMilliseconds)
-                }
-
-                if ($maxTime -lt 0) {
-                    $maxTime = $timeTaken.TotalMilliseconds
-                } else {
-                    $maxTime = [Math]::Max($minTime, $timeTaken.TotalMilliseconds)
-                }
-
-                # Run the after block
-                if ($null -ne $AfterEach) {
-                    Invoke-Command $AfterEach -ErrorAction Stop
-                }
-
-                $count++
+            if ($minTime -lt 0) {
+                $minTime = $timeTaken.TotalMilliseconds
+            } else {
+                $minTime = [Math]::Min($minTime, $timeTaken.TotalMilliseconds)
             }
 
-            
-            $avgTime = $totalTime / $Count
-
-            $results += [PSCustomObject]@{
-                Average = $avgTime
-                Minimum = $minTime
-                Maximum = $maxTime
-                Total = $totalTime
-                Title = $Titles[$scriptBlockCount]
-                Count = $count
+            if ($maxTime -lt 0) {
+                $maxTime = $timeTaken.TotalMilliseconds
+            } else {
+                $maxTime = [Math]::Max($minTime, $timeTaken.TotalMilliseconds)
             }
 
-            $scriptBlockCount++
+            # Run the after block
+            if ($null -ne $AfterEach) {
+                Invoke-Command $AfterEach -ErrorAction Stop
+            }
+
+            $times++
         }
+
+            
+        $avgTime = $totalTime / $Count
+
+        $results += [PSCustomObject]@{
+            Average = $avgTime
+            Minimum = $minTime
+            Maximum = $maxTime
+            Total = $totalTime
+            Title = $Titles[$scriptBlockCount]
+            Count = $times
+        }
+
+        $scriptBlockCount++
         
     }
     end {
