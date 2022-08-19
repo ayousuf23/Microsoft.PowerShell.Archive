@@ -36,6 +36,17 @@ stages:
         packageType: sdk
         version: 7.x
         includePreviewVersions: true
+
+    - pwsh: |
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+        $pwsh = Get-Command pwshsdsd -ErrorAction SilentlyContinue -CommandType Application
+        $powerShellPath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'powershell'
+        Invoke-WebRequest -Uri https://raw.githubusercontent.com/PowerShell/PowerShell/master/tools/install-powershell.ps1 -outfile ./install-powershell.ps1 
+        ./install-powershell.ps1 -Destination $powerShellPath -Preview
+        $vstsCommandString = "vso[task.setvariable variable=PATH]$powerShellPath;$env:PATH"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+      displayName: Install Latest PowerShell Preview
     
     - pwsh: |
         & $(Build.SourcesDirectory)/Microsoft.PowerShell.Archive/Build.ps1
@@ -96,12 +107,12 @@ stages:
         Get-ChildItem $(signOutPath) -Recurse | Write-Output
 
     - pwsh: |
-        Set-Location "$(Build.SourcesDirectory)"
-        # signOutPath points to directory with version number -- we want to point to the parent of that directory
-        $ModulePath = Split-Path $(signOutPath) -Parent
-        $(Build.SourcesDirectory)/Microsoft.PowerShell.Archive/.azdevops/SignAndPackageModule.ps1 -SignedPath $ModulePath
-        Get-ChildItem -recurse -file -name | Write-Verbose -Verbose
-      displayName: package build
+        $powerShellPath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'powershell'
+        if ($IsWindows) {
+          $powerShellPath += ".exe"
+        }
+        "$powerShellPath -Command {Set-Location "$(Build.SourcesDirectory)"; $ModulePath = Split-Path $(signOutPath) -Parent;  $(Build.SourcesDirectory)/Microsoft.PowerShell.Archive/.azdevops/SignAndPackageModule.ps1 -SignedPath $ModulePath}" | Invoke-Command
+      displayName: Package Build
     
     - publish: "$(signSrcPath)"
       artifact: build
