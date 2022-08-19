@@ -111,7 +111,7 @@ stages:
         if ($IsWindows) {
           $powerShellPath += ".exe"
         }
-        "$powerShellPath -Command {Set-Location $(Build.SourcesDirectory); $ModulePath = Split-Path $(signOutPath) -Parent;  $(Build.SourcesDirectory)/Microsoft.PowerShell.Archive/.azdevops/SignAndPackageModule.ps1 -SignedPath $ModulePath}" | Invoke-Command
+        "$powerShellPath -Command {Set-Location $(Build.SourcesDirectory); $ModulePath = Split-Path $(signOutPath) -Parent;  $(Build.SourcesDirectory)/Microsoft.PowerShell.Archive/.azdevops/SignAndPackageModule.ps1 -SignedPath $ModulePath}" | Invoke-Expression
       displayName: Package Build
     
     - publish: "$(signSrcPath)"
