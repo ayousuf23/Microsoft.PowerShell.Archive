@@ -43,7 +43,7 @@ function Measure-These {
             if ($maxTime -lt 0) {
                 $maxTime = $timeTaken.TotalMilliseconds
             } else {
-                $maxTime = [Math]::Max($minTime, $timeTaken.TotalMilliseconds)
+                $maxTime = [Math]::Max($maxTime, $timeTaken.TotalMilliseconds)
             }
 
             # Run the after block
