@@ -1,9 +1,35 @@
 New-Item CompressArchiveBenchmarks -ItemType Directory
 
-$timesToRunEach = 1
+$timesToRunEach = 1000
 
 New-Item CompressArchiveBenchmarks/file.txt -ItemType File
 "Hello, World!" | Out-File CompressArchiveBenchmarks/file.txt
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.zip} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "v2"
+$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z a CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/file.txt} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "7z"
+$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -c CompressArchiveBenchmarks/file.txt -f CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "Tar"
+$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "v2 Tar"
+$env:bench1 = @($env:outputv2, $env:output7z, $env:outputTar, $env:outputv2Tar) 
+
+# Compress an image benchmarks
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive cat.jpg CompressArchiveBenchmarks/archive.zip} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "v2"
+$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z a CompressArchiveBenchmarks/archive.zip cat.jpg} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "7z"
+$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -c cat.jpg -f CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "Tar"
+$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive cat.jpg CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "v2 Tar"
+$env:bench2 = @($env:outputv2, $env:output7z, $env:outputTar, $env:outputv2Tar) 
+
+# Compress a directory structure containing multiple items
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive PowerShell CompressArchiveBenchmarks/archive.zip} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "v2"
+$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z a CompressArchiveBenchmarks/archive.zip PowerShell} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "7z"
+$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -c PowerShell -f CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "Tar"
+$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive PowerShell CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "v2 Tar"
+$env:bench3 = @($env:outputv2, $env:output7z, $env:outputTar, $env:outputv2Tar) 
+
+# Compress a windows iso ~5GB file benchmarks
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive windows.iso CompressArchiveBenchmarks/archive.zip} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "v2"
+$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z a CompressArchiveBenchmarks/archive.zip windows.iso} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "7z"
+$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -c windows.iso -f CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "Tar"
+$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive windows.iso CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "v2 Tar"
+$env:bench4 = @($env:outputv2, $env:output7z, $env:outputTar, $env:outputv2Tar) 
 
 # Expand a small archive benchmarks
 7z a CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/file.txt
