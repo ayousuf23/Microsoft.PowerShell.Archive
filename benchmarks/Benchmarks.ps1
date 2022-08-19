@@ -7,10 +7,10 @@ $timesToRunEach = 1
 7z a CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/file.txt
 tar -c CompressArchiveBenchmarks/file.txt -f CompressArchiveBenchmarks/archive.tar
 mkdir CompressArchiveBenchmarks/bench5
-$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/bench5} -AfterEach {rm CompressArchiveBenchmarks/bench5/* -r} -Titles "v2"
-$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z x archive.zip -oCompressArchiveBenchmarks/bench5/} -AfterEach {rm CompressArchiveBenchmarks/bench5/* -r} -Titles "7z"
-$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -xf CompressArchiveBenchmarks/archive.tar -C CompressArchiveBenchmarks/bench5} -AfterEach {rm CompressArchiveBenchmarks/bench5/* -r} -Titles "Tar"
-$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.tar CompressArchiveBenchmarks/bench5} -AfterEach {rm CompressArchiveBenchmarks/bench5/* -r} -Titles "v2 Tar"
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/bench5} -AfterEach {rm CompressArchiveBenchmarks/bench5/* -r -f} -Titles "v2"
+$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z x archive.zip -oCompressArchiveBenchmarks/bench5/} -AfterEach {rm CompressArchiveBenchmarks/bench5/* -r -f} -Titles "7z"
+$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -xf CompressArchiveBenchmarks/archive.tar -C CompressArchiveBenchmarks/bench5} -AfterEach {rm CompressArchiveBenchmarks/bench5/* -r -f} -Titles "Tar"
+$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.tar CompressArchiveBenchmarks/bench5} -AfterEach {rm CompressArchiveBenchmarks/bench5/* -r -f} -Titles "v2 Tar"
 $env:bench5 = @($env:outputv2, $env:output7z, $env:outputTar, $env:outputv2Tar) 
 rm CompressArchiveBenchmarks/archive.zip
 rm CompressArchiveBenchmarks/archive.tar
@@ -20,10 +20,10 @@ rm CompressArchiveBenchmarks/archive.tar
 7z a CompressArchiveBenchmarks/archive.zip cat.jpg
 tar -c cat.jpg -f CompressArchiveBenchmarks/archive.tar
 mkdir CompressArchiveBenchmarks/bench6
-$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/bench6} -AfterEach {rm CompressArchiveBenchmarks/bench6/* -r} -Titles "v2"
-$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z x archive.zip -oCompressArchiveBenchmarks/bench6/} -AfterEach {rm CompressArchiveBenchmarks/bench6/* -r} -Titles "7z"
-$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -xf CompressArchiveBenchmarks/archive.tar -C CompressArchiveBenchmarks/bench6} -AfterEach {rm CompressArchiveBenchmarks/bench6/* -r} -Titles "Tar"
-$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.tar CompressArchiveBenchmarks/bench6} -AfterEach {rm CompressArchiveBenchmarks/bench6/* -r} -Titles "v2 Tar"
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/bench6} -AfterEach {rm CompressArchiveBenchmarks/bench6/* -r -f} -Titles "v2"
+$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z x archive.zip -oCompressArchiveBenchmarks/bench6/} -AfterEach {rm CompressArchiveBenchmarks/bench6/* -r -f} -Titles "7z"
+$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -xf CompressArchiveBenchmarks/archive.tar -C CompressArchiveBenchmarks/bench6} -AfterEach {rm CompressArchiveBenchmarks/bench6/* -r -f} -Titles "Tar"
+$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.tar CompressArchiveBenchmarks/bench6} -AfterEach {rm CompressArchiveBenchmarks/bench6/* -r -f} -Titles "v2 Tar"
 $env:bench6 = @($env:outputv2, $env:output7z, $env:outputTar, $env:outputv2Tar) 
 rm CompressArchiveBenchmarks/archive.zip
 rm CompressArchiveBenchmarks/archive.tar
@@ -32,10 +32,10 @@ rm CompressArchiveBenchmarks/archive.tar
 7z a CompressArchiveBenchmarks/archive.zip PowerShell
 tar -c PowerShell -f CompressArchiveBenchmarks/archive.tar
 mkdir CompressArchiveBenchmarks/bench7
-$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/bench7} -AfterEach {rm CompressArchiveBenchmarks/bench7/* -r} -Titles "v2"
-$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z x archive.zip -oCompressArchiveBenchmarks/bench7/} -AfterEach {rm CompressArchiveBenchmarks/bench7/* -r} -Titles "7z"
-$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -xf CompressArchiveBenchmarks/archive.tar -C CompressArchiveBenchmarks/bench7} -AfterEach {rm CompressArchiveBenchmarks/bench7/* -r} -Titles "Tar"
-$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.tar CompressArchiveBenchmarks/bench7} -AfterEach {rm CompressArchiveBenchmarks/bench7/*-r} -Titles "v2 Tar"
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/bench7} -AfterEach {rm CompressArchiveBenchmarks/bench7/* -r -f} -Titles "v2"
+$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z x archive.zip -oCompressArchiveBenchmarks/bench7/} -AfterEach {rm CompressArchiveBenchmarks/bench7/* -r -f} -Titles "7z"
+$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -xf CompressArchiveBenchmarks/archive.tar -C CompressArchiveBenchmarks/bench7} -AfterEach {rm CompressArchiveBenchmarks/bench7/* -r -f} -Titles "Tar"
+$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.tar CompressArchiveBenchmarks/bench7} -AfterEach {rm CompressArchiveBenchmarks/bench7/* -r -f} -Titles "v2 Tar"
 $env:bench7 = @($env:outputv2, $env:output7z, $env:outputTar, $env:outputv2Tar)
 rm CompressArchiveBenchmarks/archive.zip
 rm CompressArchiveBenchmarks/archive.tar
@@ -44,10 +44,10 @@ rm CompressArchiveBenchmarks/archive.tar
 7z a CompressArchiveBenchmarks/archive.zip windows.iso
 tar -c windows.iso -f CompressArchiveBenchmarks/archive.tar
 mkdir CompressArchiveBenchmarks/bench8
-$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/bench8} -AfterEach {rm CompressArchiveBenchmarks/bench8/* -r} -Titles "v2"
-$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z x archive.zip -oCompressArchiveBenchmarks/bench8/} -AfterEach {rm CompressArchiveBenchmarks/bench8/* -r} -Titles "7z"
-$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -xf CompressArchiveBenchmarks/archive.tar -C CompressArchiveBenchmarks/bench8} -AfterEach {rm CompressArchiveBenchmarks/bench8/* -r} -Titles "Tar"
-$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.tar CompressArchiveBenchmarks/bench8} -AfterEach {rm CompressArchiveBenchmarks/bench8/* -r} -Titles "v2 Tar"
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/bench8} -AfterEach {rm CompressArchiveBenchmarks/bench8/* -r -f} -Titles "v2"
+$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z x archive.zip -oCompressArchiveBenchmarks/bench8/} -AfterEach {rm CompressArchiveBenchmarks/bench8/* -r -f} -Titles "7z"
+$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -xf CompressArchiveBenchmarks/archive.tar -C CompressArchiveBenchmarks/bench8} -AfterEach {rm CompressArchiveBenchmarks/bench8/* -r -f} -Titles "Tar"
+$env:outputv2Tar = Measure-These -Count $timesToRunEach -ToMeasure {Expand-Archive CompressArchiveBenchmarks/archive.tar CompressArchiveBenchmarks/bench8} -AfterEach {rm CompressArchiveBenchmarks/bench8/* -r -f} -Titles "v2 Tar"
 $env:bench8 = @($env:outputv2, $env:output7z, $env:outputTar, $env:outputv2Tar) 
 rm CompressArchiveBenchmarks/archive.zip
 rm CompressArchiveBenchmarks/archive.tar
