@@ -25,11 +25,11 @@ function Measure-These {
         $times = 0
 
         1..$Count | % {
-            # Run the before block
+            # Run the BeforeEach block
             if ($null -ne $BeforeEach) {
                 Invoke-Command $BeforeEach -ErrorAction Stop
             }
-            # Run the block to measure
+            # Run the block to measure time taken
             $timeTaken = Measure-Command -Expression $ToMeasure[$scriptBlockCount]
 
             $totalTime += $timeTaken.TotalMilliseconds
