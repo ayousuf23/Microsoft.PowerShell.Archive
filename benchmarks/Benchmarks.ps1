@@ -2,6 +2,8 @@ New-Item CompressArchiveBenchmarks -ItemType Directory
 
 $timesToRunEach = 1000
 
+#12:28
+
 New-Item CompressArchiveBenchmarks/file.txt -ItemType File
 "Hello, World!" | Out-File CompressArchiveBenchmarks/file.txt
 $env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.zip} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "v2"
