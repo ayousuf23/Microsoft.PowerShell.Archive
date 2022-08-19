@@ -5,12 +5,12 @@ $timesToRunEach = 1000
 # Compress a single small file benchmarks
 New-Item CompressArchiveBenchmarks/file.txt -ItemType File
 "Hello, World!" | Out-File CompressArchiveBenchmarks/file.txt
-$outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.zip} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "v2"
-$output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z a CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/file.txt} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "7z"
-$outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -c CompressArchiveBenchmarks/file.txt -f CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "Tar"
-$outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "v2 Tar"
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.zip} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "v2"
+$env:output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z a CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/file.txt} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "7z"
+$env:outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -c CompressArchiveBenchmarks/file.txt -f CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "Tar"
+$env:outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "v2 Tar"
 Remove-Item CompressArchiveBenchmarks/file.txt
-@($outputv2, $output7z, $outputTar) | Select-Object Title, Average, Total, Minimum, Maximum | Format-Table
+@($env:outputv2, $env:output7z, $env:outputTar) | Select-Object Title, Average, Total, Minimum, Maximum | Format-Table
 
 # Compress an image benchmarks
 
