@@ -1,12 +1,16 @@
 New-Item CompressArchiveBenchmarks -ItemType Directory
 
+$timesToRunEach = 1000
+
 # Compress a single small file benchmarks
 New-Item CompressArchiveBenchmarks/file.txt -ItemType File
 "Hello, World!" | Out-File CompressArchiveBenchmarks/file.txt
-$output = Measure-These -Count 2 -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.zip} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "v2"
-Write-Output $output.Count
+$outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.zip} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "v2"
+$output7z = Measure-These -Count $timesToRunEach -ToMeasure {7z a CompressArchiveBenchmarks/archive.zip CompressArchiveBenchmarks/file.txt} -AfterEach {rm CompressArchiveBenchmarks/archive.zip} -Titles "7z"
+$outputTar = Measure-These -Count $timesToRunEach -ToMeasure {tar -c CompressArchiveBenchmarks/file.txt -f CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "Tar"
+$outputv2 = Measure-These -Count $timesToRunEach -ToMeasure {Compress-Archive CompressArchiveBenchmarks/file.txt CompressArchiveBenchmarks/archive.tar} -AfterEach {rm CompressArchiveBenchmarks/archive.tar} -Titles "v2 Tar"
 Remove-Item CompressArchiveBenchmarks/file.txt
-$output | Select-Object Title, Average, Total, Minimum, Maximum | Format-Table
+@($outputv2, $output7z, $outputTar) | Select-Object Title, Average, Total, Minimum, Maximum | Format-Table
 
 # Compress an image benchmarks
 
@@ -15,10 +19,6 @@ $output | Select-Object Title, Average, Total, Minimum, Maximum | Format-Table
 # Compress a 2GB file benchmarks
 
 # Compress a 7-9GB file benchmarks
-
-# Update a small archive w/directory structure containing multiple items benchmarks
-
-# Update an archive containing a 2GB file
 
 # Expand a small archive benchmarks
 
