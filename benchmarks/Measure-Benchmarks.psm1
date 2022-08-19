@@ -32,18 +32,18 @@ function Measure-These {
                 # Run the block to measure
                 $timeTaken = Measure-Command -Expression $ToMeasure[$scriptBlockCount]
 
-                $totalTime += $timeTaken.TotalSeconds
+                $totalTime += $timeTaken.TotalMilliseconds
 
                 if ($minTime -lt 0) {
-                    $minTime = $timeTaken.TotalSeconds
+                    $minTime = $timeTaken.TotalMilliseconds
                 } else {
-                    $minTime = [Math]::Min($minTime, $timeTaken.TotalSeconds)
+                    $minTime = [Math]::Min($minTime, $timeTaken.TotalMilliseconds)
                 }
 
                 if ($maxTime -lt 0) {
-                    $maxTime = $timeTaken.TotalSeconds
+                    $maxTime = $timeTaken.TotalMilliseconds
                 } else {
-                    $maxTime = [Math]::Max($minTime, $timeTaken.TotalSeconds)
+                    $maxTime = [Math]::Max($minTime, $timeTaken.TotalMilliseconds)
                 }
 
                 # Run the after block
